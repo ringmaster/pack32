@@ -1,0 +1,159 @@
+@import "reset";
+@import "lesshat";
+
+body {
+	background: url(/img/bg.jpg) center;
+	color: #eee;
+	font-family: Georgia;
+	line-height: 150%;
+}
+
+.wrapper {
+	margin: 0 auto;
+	max-width: 980px;
+}
+
+#header {
+
+	background-image: url(/img/patches.png);
+	background-repeat: no-repeat;
+	background-position: right bottom;
+	height: 140px;
+
+	h1 {
+		text-indent: -9999px;
+		display: block;
+		width: 280px;
+		height: 115px;
+		background: url(/img/pack_32.png);
+	}
+}
+
+#nav {
+	height: 90px;
+	background: url(/img/nav.png) center;
+	.box-shadow(0 0 30px black);
+
+	ol {
+		width: 980px;
+		margin: 0px auto;
+		height: 90px;
+	}
+	li {
+		display: inline-block;
+		height: 38px;
+		margin-top: 25px;
+		margin-right: 20px;
+		background: url(/img/menu_btn_left.png) top left;
+		padding: 0px 0px 0px 10px;
+		box-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+		&:hover {
+			box-shadow: 1px 1px 3px rgba(0,0,0,0.7);
+		}
+	}
+	a {
+		display: inline-block;
+		height: 38px;
+		margin-top: 0px;
+		background: url(/img/menu_btn_right.png) top right;
+		padding: 10px 10px 0 0;
+		box-sizing: border-box;
+		color: #eee;
+		text-decoration: none;
+		text-shadow: 1px 1px 1px black;
+		&:hover {
+			color: #F40606;
+		}
+	}
+	.login {
+		float: right;
+	}
+}
+
+#content {
+	margin: 20px 0px;
+
+	h1 {
+		font-size: 2em;
+		margin-bottom: 15px;
+	}
+
+	.content {
+		h1 {
+			font-size: 1.8em;
+			margin: 10px 0;
+		}
+		h2 {
+			font-size: 1.5em;
+			margin: 10px 0;
+		}
+		h3 {
+			font-size: 1.3em;
+			margin: 10px 0;
+		}
+
+	}
+
+	a {
+		color: #999999;
+		text-decoration: underline;
+		&:hover {
+			color: white;
+		}
+	}
+
+	p {
+		margin: 0 0 20px;
+		line-height: 150%;
+		font-weight: normal;
+	}
+
+	ul {
+		list-style: disc inside;
+		line-height: 150%;
+	}
+	ol {
+		list-style: decimal inside;
+		line-height: 150%;
+	}
+	li {
+		line-height: 150%;
+		margin-left: 2em;
+	}
+
+	.redactor_box,
+	.redactor_editor {
+		background-color: rgba(255,255,255,0.03) !important;
+		border: 0px;
+		font-family: Georgia;
+	}
+
+	.toolkit {
+		position: absolute;
+		margin-left: -24px;
+		width: 24px;
+		opacity: 0.3;
+
+		&:hover {
+			opacity: 1.0;
+		}
+		a {
+			color: #999999;
+			text-decoration: none;
+			&:hover {
+				color: white;
+			}
+		}
+		i {
+			font-size: 24px;
+		}
+	}
+}
+
+
+
+#footer {
+	min-height: 90px;
+	background-color: rgba(0, 0, 0, 0.2);
+	margin-bottom: 50px;
+}
