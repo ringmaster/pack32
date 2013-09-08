@@ -44,9 +44,9 @@ $buildmenu = function(Response $response) {
 			'class' => 'login',
 		];
 		$response['menu'][] = [
-			'href' => 'javascript:add_content()',
+			'href' => '/admin/new',
 			'title' => 'Add Content',
-			'class' => 'login',
+			'class' => 'login modaldlg',
 		];
 	}
 	else {
@@ -217,8 +217,15 @@ $app->route('test', '/den/:den', function (Request $request) {
 	echo "Den: {$request['den']}";
 })->validate_fields([':den' => '[0-9]+']);
 
-$app->route('event', '/events/:slug', function(Request $request) {
-	echo "Slug: {$request['slug']}";
+$app->route('event', '/events/:slug', $authdata, $buildmenu, function(Request $request, Response $response, Pack32 $app) {
+	$article = $app->db()->row('SELECT * FROM content WHERE slug = :slug', ['slug' => $request['slug']]);
+	if($article) {
+		$response['article'] = $article;
+		$response['title'] = $article['title'] . ' - Cub Scout Pack 32';
+		return $response->render('event.php');
+	}
+	header('location: /');
+	return 'not found';
 });
 
 $app->route('add_new', '/admin/new', $authdata, function(Request $request, Response $response, Pack32 $app) {

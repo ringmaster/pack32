@@ -38,6 +38,12 @@
 			}
 		});
 
+		$('.modaldlg a').on('click', function(ev){
+			add_content();
+			ev.preventDefault();
+			return false;
+		});
+
 
 		<?php if($loggedin): ?>
 		$('.edit').on('click', function ()

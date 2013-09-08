@@ -103,6 +103,12 @@ body {
 			margin-bottom: 15px;
 		}
 	}
+	&.event {
+		.content {
+			border-top: 1px solid rgba(0,0,0,0.3);
+			padding-top: 30px;
+		}
+	}
 
 	article {
 		clear: both;
@@ -112,6 +118,12 @@ body {
 		font-size: 2em;
 		margin-bottom: 15px;
 		font-weight: bold;
+	}
+	h2 {
+		font-size: 1.5em;
+		margin-bottom: 15px;
+		font-weight: bold;
+		color: #aaaaaa;
 	}
 
 	.content {
@@ -279,6 +291,19 @@ body {
 	.redactor_toolbar {
 		background: #f4f4f4;
 	}
+	p, ol, ul {
+		margin-bottom: 20px !important;
+		line-height: 120%;
+	}
+	ol {
+		list-style: decimal inside;
+	}
+	ul {
+		list-style: disc inside;
+	}
+}
+.redactor_box {
+	margin-top: 20px;
 }
 
 @media (max-width: 980px) {
