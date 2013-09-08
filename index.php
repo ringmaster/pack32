@@ -73,20 +73,43 @@ $app->route('home', '/', $authdata, $buildmenu, function (Response $response, Pa
 		ORDER BY content.posted_on
 		DESC LIMIT 5
 	');
-	$response['upcoming'] = $app->db()->results('
-		SELECT *
+	if($response['loggedin']) {
+		$usergroups = $app->db()->col('SELECT group_id FROM usergroup WHERE user_id = :user_id', ['user_id' => $response['user']['id']]);
+		if($usergroups) {
+			$usergroups = implode(',', $usergroups);
+		}
+		else {
+			$usergroups = '0';
+		}
+		$sql = "SELECT *
 		FROM content
 		INNER JOIN
 		  eventgroup ON eventgroup.event_id = content.id
 		INNER JOIN
 			groups ON groups.id = eventgroup.group_id
 		WHERE
-			groups.is_global = 1
-			AND content_type = "event"
+			(groups.is_global = 1 OR groups.id IN ({$usergroups}))
+			AND content_type = 'event'
 			AND event_on > :now
-		ORDER BY content.posted_on ASC
-		LIMIT 20;
-	', ['now' => time()]);
+		ORDER BY content.posted_on";
+	}
+	else {
+		$sql = '
+			SELECT *
+			FROM content
+			INNER JOIN
+				eventgroup ON eventgroup.event_id = content.id
+			INNER JOIN
+				groups ON groups.id = eventgroup.group_id
+			WHERE
+				groups.is_global = 1
+				AND content_type = "event"
+				AND event_on > :now
+			ORDER BY content.posted_on ASC
+			LIMIT 20;
+		';
+	}
+	$response['upcoming'] = $app->db()->results($sql, ['now' => time()]);
 	$response['app'] = $app;
 	return $response->render('home.php');
 });
