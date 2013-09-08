@@ -11,6 +11,13 @@
 		<h1><?= $article['title'] ?></h1>
 		<h2><?= date('D, M j, Y', $article['event_on']) ?></h2>
 
+		<div class="groups">
+			Participants:
+			<?php foreach($groups as $group): ?>
+			<span class="group <?= $group['is_global'] != 0 ? 'global' : '' ?>"><?= $group['name'] ?></span>
+			<?php endforeach; ?>
+		</div>
+
 		<div class="content">
 			<?= $article['content'] ?>
 		</div>

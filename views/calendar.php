@@ -39,15 +39,21 @@
 		}
 	?>
 		<li class="<?= $cur_month ? 'current_month' : 'other_month'; ?> <?= $past ? 'past' : 'upcoming'; ?> <?= $empty ?> <?= $today ?>"><span class="date_weekday"><?= $current_date->format('D'); ?> </span><span class="date_number"><?= $current_date->format('j') ?></span>
+			<ul>
 			<?php
 			foreach($events as $event) :
 				if($event['event_on'] > $current_date->getTimestamp() && $event['event_on'] < $current_date->getTimestamp() + 86400):
 			?>
-					<div class="event <?= $event['is_global'] ? 'global' : 'user' ?>"><small class="group"><?= $event['name'] ?></small> <a href="<?= $app->get_url('event', ['slug' => $event['slug']]) ?>"><?= $event['title'] ?></a></div>
+					<li><div class="event <?= $event['is_global'] ? 'global' : 'user' ?>">
+							<?php foreach($event['groups'] as $group): ?>
+							<small class="group"><?= $group['name'] ?></small>
+							<?php endforeach; ?>
+							<a href="<?= $app->get_url('event', ['slug' => $event['slug']]) ?>"><?= $event['title'] ?></a></div></li>
 			<?php
 				endif;
 			endforeach;
 			?>
+			</ul>
 		</li>
 	<?php
 		$current_date->add($add_one_day);

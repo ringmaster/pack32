@@ -61,7 +61,7 @@ $buildmenu = function(Response $response) {
 $app->route('home', '/', $authdata, $buildmenu, function (Response $response, Pack32 $app) {
 	$response['title'] = 'Cub Scout Pack 32 - Pickering Valley - Events, News, Calendar, &amp; Communication Center';
 	$response['articles'] = $app->db()->results('
-		SELECT *
+		SELECT *, content.id as id
 		FROM content
 		INNER JOIN
 		  eventgroup ON eventgroup.event_id = content.id
@@ -137,7 +137,7 @@ $calendar = function(Request $request, Response $response, Pack32 $app){
 	}
 
 	if(isset($_GET['all'])) {
-		$sql = 'SELECT *
+		$sql = 'SELECT *, content.id as id
 		FROM content
 		INNER JOIN
 		  eventgroup ON eventgroup.event_id = content.id
@@ -146,6 +146,7 @@ $calendar = function(Request $request, Response $response, Pack32 $app){
 		WHERE
 			content_type = "event"
 			AND event_on BETWEEN :start_date AND :end_date
+		GROUP BY content.id
 		ORDER BY content.posted_on';
 	}
 	elseif($response['loggedin']) {
@@ -156,7 +157,7 @@ $calendar = function(Request $request, Response $response, Pack32 $app){
 		else {
 			$usergroups = '0';
 		}
-		$sql = "SELECT *
+		$sql = "SELECT *, content.id as id
 		FROM content
 		INNER JOIN
 		  eventgroup ON eventgroup.event_id = content.id
@@ -166,10 +167,11 @@ $calendar = function(Request $request, Response $response, Pack32 $app){
 			(groups.is_global = 1 OR groups.id IN ({$usergroups}))
 			AND content_type = 'event'
 			AND event_on BETWEEN :start_date AND :end_date
+		GROUP BY content.id
 		ORDER BY content.posted_on";
 	}
 	else {
-		$sql = 'SELECT *
+		$sql = 'SELECT *, content.id as id
 		FROM content
 		INNER JOIN
 		  eventgroup ON eventgroup.event_id = content.id
@@ -179,6 +181,7 @@ $calendar = function(Request $request, Response $response, Pack32 $app){
 			groups.is_global = 1
 			AND content_type = "event"
 			AND event_on BETWEEN :start_date AND :end_date
+		GROUP BY content.id
 		ORDER BY content.posted_on';
 	}
 
@@ -189,6 +192,10 @@ $calendar = function(Request $request, Response $response, Pack32 $app){
 			'end_date' => $end_date->getTimestamp(),
 		]
 	);
+
+	foreach($response['events'] as &$event) {
+		$event['groups'] = $app->db()->results('SELECT * FROM eventgroup INNER JOIN groups ON group_id = groups.id WHERE event_id = :event_id', ['event_id' => $event->id]);
+	}
 	$response['start_date'] = $start_date;
 	$response['end_date'] = $end_date;
 	$response['sel_date'] = $sel_date;
@@ -221,6 +228,7 @@ $app->route('event', '/events/:slug', $authdata, $buildmenu, function(Request $r
 	$article = $app->db()->row('SELECT * FROM content WHERE slug = :slug', ['slug' => $request['slug']]);
 	if($article) {
 		$response['article'] = $article;
+		$response['groups'] = $app->db()->results('SELECT * FROM eventgroup INNER JOIN groups ON group_id = groups.id WHERE event_id = :event_id', ['event_id' => $article->id]);
 		$response['title'] = $article['title'] . ' - Cub Scout Pack 32';
 		$response['app'] = $app;
 		return $response->render('event.php');

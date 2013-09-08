@@ -106,7 +106,8 @@ body {
 	&.event {
 		.content {
 			border-top: 1px solid rgba(0,0,0,0.3);
-			padding-top: 30px;
+			padding-top: 20px;
+			margin-top: 20px;
 		}
 	}
 
@@ -215,11 +216,23 @@ body {
 		float: left;
 		margin: .2em;
 		padding: .2em;
-		overflow: auto;
+		overflow-y: auto;
 		list-style: none;
 		background-color: rgba(0,0,0,0.4);
 		border-bottom-right-radius: 5px;
 		box-shadow: 1px 1px 1px black;
+
+		li {
+			display: block;
+			height: 1.2em;
+			background: transparent;
+			float: none;
+			box-shadow: none;
+			overflow: visible;
+			margin: 0;
+			padding: 0;
+		}
+
 		&.other_month {
 			background-color: rgba(0,0,0,0.2);
 			border-bottom-right-radius: 0;
@@ -265,6 +278,16 @@ body {
 }
 .date_weekday {
 	display: none;
+}
+
+.groups .group {
+	background: #900403;
+	border-radius: 5px;
+	color: #eeeeee;
+	padding: 2px 5px;
+	&.global {
+		background-color: #5B7693;
+	}
 }
 
 #footer {
