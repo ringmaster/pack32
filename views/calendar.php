@@ -30,8 +30,14 @@
 	while($current_date <= $end_date):
 		$cur_month = $sel_date->format('m') == $current_date->format('m');
 		$past = $current_date < new DateTime('-1 day');
+		$empty = 'empty';
+		foreach($events as $event) {
+			if($event['event_on'] > $current_date->getTimestamp() && $event['event_on'] < $current_date->getTimestamp() + 86400) {
+				$empty = '';
+			}
+		}
 	?>
-		<li class="<?= $cur_month ? 'current_month' : 'other_month'; ?> <?= $past ? 'past' : 'upcoming'; ?>"><span class="date_number"><?= $current_date->format('j') ?></span>
+		<li class="<?= $cur_month ? 'current_month' : 'other_month'; ?> <?= $past ? 'past' : 'upcoming'; ?> <?= $empty ?>"><span class="date_weekday"><?= $current_date->format('D'); ?></span><span class="date_number"><?= $current_date->format('j') ?></span>
 			<?php
 			foreach($events as $event) :
 				if($event['event_on'] > $current_date->getTimestamp() && $event['event_on'] < $current_date->getTimestamp() + 86400):
