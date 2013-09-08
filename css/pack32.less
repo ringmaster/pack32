@@ -1,5 +1,12 @@
 @import "reset";
 @import "lesshat";
+@import "forms";
+
+.clearfix() {
+	zoom: 1;
+	&:before { content: ''; display: block; }
+	&:after { content: ''; display: table; clear: both; }
+}
 
 body {
 	background: url(/img/bg.jpg) center;
@@ -57,7 +64,7 @@ body {
 		margin-top: 0px;
 		background: url(/img/menu_btn_right.png) top right;
 		padding: 10px 10px 0 0;
-		box-sizing: border-box;
+		.box-sizing(border-box);
 		color: #eee;
 		text-decoration: none;
 		text-shadow: 1px 1px 1px black;
@@ -111,21 +118,16 @@ body {
 	ul {
 		list-style: disc inside;
 		line-height: 150%;
+		margin-bottom: 20px;
 	}
 	ol {
 		list-style: decimal inside;
 		line-height: 150%;
+		margin-bottom: 20px;
 	}
 	li {
 		line-height: 150%;
 		margin-left: 2em;
-	}
-
-	.redactor_box,
-	.redactor_editor {
-		background-color: rgba(255,255,255,0.03) !important;
-		border: 0px;
-		font-family: Georgia;
 	}
 
 	.toolkit {
@@ -150,10 +152,92 @@ body {
 	}
 }
 
+#content ol.calendar {
+	.clearfix();
+	margin: 0 auto;
+	width: 980px;
+	display: block;
+	min-height: 200px;
+	background: url(/img/tl.png) top left no-repeat;
+	padding: 12px 0 0 20px;
+	li {
+		width: 120px;
+		height: 6em;
+		float: left;
+		margin: .2em;
+		padding: .2em;
+		overflow: auto;
+		list-style: none;
+		background-color: rgba(0,0,0,0.4);
+		border-bottom-right-radius: 5px;
+		box-shadow: 1px 1px 1px black;
+		&.other_month {
+			background-color: rgba(0,0,0,0.2);
+			border-bottom-right-radius: 0;
+			border-top-left-radius: 5px;
+		}
+		&.daynames {
+			height: 1em;
+			text-align: center;
+			background-color: rgba(0,0,0,0.7);
+			overflow: hidden;
+			border-bottom-right-radius: 0;
+		}
 
+		.event {
+			white-space: nowrap;
+			overflow: hidden;
+			&:hover {
+				position: absolute;
+				background: #081E37;
+				box-shadow: 2px 2px 2px rgba(0,0,0,0.5);
+			}
+		}
+	}
+
+	.global .group {
+		background-color: #5B7693;
+	}
+
+	.group {
+		background-color: #900403;
+		border-radius: 5px;
+		font-size: xx-small;
+		color: #eeeeee;
+		padding: 2px 5px;
+	}
+}
+
+.date_number {
+	font-weight: bold;
+}
 
 #footer {
 	min-height: 90px;
 	background-color: rgba(0, 0, 0, 0.2);
 	margin-bottom: 50px;
 }
+
+.editor_page {
+	background: white;
+}
+
+#editor {
+	background: #eeeeee;
+	width: 600px;
+	margin: 0 auto;
+	padding: 20px;
+	.box-sizing(border-box);
+}
+
+.redactor_box,
+.redactor_editor {
+	background-color: rgba(255,255,255,0.03) !important;
+	border: 0px;
+	font-family: Georgia;
+	color: black;
+	.redactor_toolbar {
+		background: #f4f4f4;
+	}
+}
+

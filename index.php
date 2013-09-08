@@ -2,34 +2,50 @@
 
 namespace Microsite;
 
+use Microsite\DB\PDO\DB;
+
 include 'microsite.phar';
 
 session_start();
 
-$app = new App();
+class Pack32 extends App {
+	/**
+	 * @return \Microsite\DB\PDO\DB
+	 */
+	public function db() {
+		return $this->dispatch_object('db', func_get_args());
+	}
+}
+
+$app = new Pack32();
 
 // Assign a directory in which templates can be found for rendering
 $app->template_dirs = [
 	__DIR__ . '/views',
 ];
 
-$authdata = function(Response $response) {
-	$response['currentuser'] = isset($_SESSION['user_email']) ? $_SESSION['user_email'] : '';
-	$response['loggedin'] = isset($_SESSION['user_email']);
-};
+include 'includes/auth.php';
 
-$app->route('home', '/', $authdata, function (Response $response) {
-	$response['title'] = 'Cub Scout Pack 32 - Pickering Valley - Events, News, Calendar, &amp; Communication Center';
+$buildmenu = function(Response $response) {
 	$response['menu'] = [
 		[
 			'href' => '/',
 			'title' => 'Home',
 		],
+		[
+			'href' => '/calendar',
+			'title' => 'Calendar',
+		]
 	];
 	if($response['loggedin']) {
 		$response['menu'][] = [
 			'href' => 'javascript:navigator.id.logout()',
 			'title' => 'Log Out',
+			'class' => 'login',
+		];
+		$response['menu'][] = [
+			'href' => 'javascript:add_content()',
+			'title' => 'Add Content',
 			'class' => 'login',
 		];
 	}
@@ -40,43 +56,211 @@ $app->route('home', '/', $authdata, function (Response $response) {
 			'class' => 'login',
 		];
 	}
+};
+
+$app->route('home', '/', $authdata, $buildmenu, function (Response $response, Pack32 $app) {
+	$response['title'] = 'Cub Scout Pack 32 - Pickering Valley - Events, News, Calendar, &amp; Communication Center';
+	$response['articles'] = $app->db()->results('
+		SELECT *
+		FROM content
+		INNER JOIN
+		  eventgroup ON eventgroup.event_id = content.id
+		INNER JOIN
+			groups ON groups.id = eventgroup.group_id
+		WHERE
+			groups.is_global = 1
+			AND content_type = "article"
+		ORDER BY content.posted_on
+		DESC LIMIT 5
+	');
 	return $response->render('home.php');
 });
 
+$calendar = function(Request $request, Response $response, Pack32 $app){
+	$response['title'] = 'Calendar - Cub Scout Pack 32 - Pickering Valley';
+
+	date_default_timezone_set('UTC');
+
+	if(isset($request['year']) && isset($request['month'])) {
+		$sel_date = new \DateTime(intval($request['year']) . '-' . intval($request['month']) . '-01' );
+	}
+	else {
+		$sel_date = new \DateTime(date('Y-m-1'));
+	}
+
+	$first_sunday = strtotime('first sunday of this month', $sel_date->getTimestamp());
+	$start_date = new \DateTime('@' . $first_sunday);
+	if(intval($start_date->format('j')) != 1) {
+		$start_date->sub(\DateInterval::createFromDateString('+1 week'));
+	}
+	$end_date = new \DateTime('@' . strtotime('last saturday of this month', $sel_date->getTimestamp()));
+	if(intval($end_date->format('j')) != intval($end_date->format('t'))) {
+		$end_date->add(\DateInterval::createFromDateString('+1 week'));
+	}
+
+	if(isset($_GET['all'])) {
+		$sql = 'SELECT *
+		FROM content
+		INNER JOIN
+		  eventgroup ON eventgroup.event_id = content.id
+		INNER JOIN
+			groups ON groups.id = eventgroup.group_id
+		WHERE
+			content_type = "event"
+			AND event_on BETWEEN :start_date AND :end_date
+		ORDER BY content.posted_on';
+	}
+	elseif($response['loggedin']) {
+		$usergroups = $app->db()->col('SELECT group_id FROM usergroup WHERE user_id = :user_id', ['user_id' => $response['user']['id']]);
+		if($usergroups) {
+			$usergroups = implode(',', $usergroups);
+		}
+		else {
+			$usergroups = '0';
+		}
+		$sql = "SELECT *
+		FROM content
+		INNER JOIN
+		  eventgroup ON eventgroup.event_id = content.id
+		INNER JOIN
+			groups ON groups.id = eventgroup.group_id
+		WHERE
+			(groups.is_global = 1 OR groups.id IN ({$usergroups}))
+			AND content_type = 'event'
+			AND event_on BETWEEN :start_date AND :end_date
+		ORDER BY content.posted_on";
+	}
+	else {
+		$sql = 'SELECT *
+		FROM content
+		INNER JOIN
+		  eventgroup ON eventgroup.event_id = content.id
+		INNER JOIN
+			groups ON groups.id = eventgroup.group_id
+		WHERE
+			groups.is_global = 1
+			AND content_type = "event"
+			AND event_on BETWEEN :start_date AND :end_date
+		ORDER BY content.posted_on';
+	}
+
+	$response['events'] = $app->db()->results(
+		$sql,
+		[
+			'start_date' => $start_date->getTimestamp(),
+			'end_date' => $end_date->getTimestamp(),
+		]
+	);
+	$response['start_date'] = $start_date;
+	$response['end_date'] = $end_date;
+	$response['sel_date'] = $sel_date;
+	$response['app'] = $app;
+	return $response->render('calendar.php');
+};
+
+$app->route('calendar', '/calendar', $authdata, $buildmenu, $calendar);
+$app->route('calendar_date', '/calendar/:month/:year', $authdata, $buildmenu, $calendar);
+
+$app->route('edit_article', '/admin/article', $authdata, function(){
+	$id = $_POST['id'];
+	$title = $_POST['title'];
+	$content = $_POST['content'];
+
+	var_dump($_POST);
+
+})->post();
+
+$app->share('db', function() {
+	$db = new DB('mysql:host=localhost;dbname=pack32', 'root', '');
+	return $db;
+});
 
 $app->route('test', '/den/:den', function (Request $request) {
 	echo "Den: {$request['den']}";
 })->validate_fields([':den' => '[0-9]+']);
 
-$app->route('login', '/auth/login', function (Request $request) {
-	$assertion = $_POST['assertion'];
-	$audience = $_SERVER['HTTP_HOST'] . ':' . $_SERVER['SERVER_PORT'];
-
-	$url = 'https://verifier.login.persona.org/verify';
-
-	$http = new HTTP();
-	$result = $http->post($url, compact('assertion', 'audience'));
-	$result = json_decode($result);
-
-	if($result->status = 'okay') {
-		$_SESSION['user_email'] = $result->email;
-	}
-	else {
-		unset($_SESSION['user_email']);
-	}
-
-	var_dump($result);
+$app->route('event', '/events/:slug', function(Request $request) {
+	echo "Slug: {$request['slug']}";
 });
 
-$app->route('logout', '/auth/logout', function () {
-	if(isset($_SESSION['user_email'])) {
-		unset($_SESSION['user_email']);
-		return 'true';
+$app->route('add_new', '/admin/new', $authdata, function(Request $request, Response $response, Pack32 $app) {
+	if(!$response['loggedin']) {
+		header('location: /');
+		die();
 	}
-	else {
-		return 'false';
+	$response['app'] = $app;
+	$response['groups'] = $app->db()->results('SELECT * FROM groups ORDER BY is_global = 0, name');
+	return $response->render('new.php');
+})->get();
+
+function add_content(Request $request, Response $response, Pack32 $app) {
+	$slug = trim(strtolower(preg_replace('#[^a-z0-9_]+#i', '-', $_POST['title'])), '-');
+	$event_on = strtotime($_POST['event_on']);
+	$due_on = strtotime($_POST['due_on']);
+
+	// Get a clean slug
+	$exists = $app->db()->val('SELECT id FROM content WHERE slug = :slug', ['slug' => $slug]);
+	if ($exists) {
+		if($event_on != 0) {
+			$try = date('Y-m-d', $event_on);
+		}
+		else {
+			$try = 1;
+		}
+		while($app->db()->val('SELECT id FROM content WHERE slug = :slug', ['slug' => $slug . '-' . $try]) != false) {
+			if(is_string($try)) {
+				$try = 1;
+			}
+			else {
+				$try++;
+			}
+		}
+		$slug = $slug . '-' . $try;
 	}
-});
+
+	$record = [
+		'slug' => $slug,
+		'title' => $_POST['title'],
+		'content' => $_POST['content'],
+		'user_id' => $response['user']['id'],
+		'posted_on' => time(),
+		'content_type' => $_POST['content_type'],
+		'due_on' => $due_on,
+		'event_on' => $event_on,
+		'has_rsvp' => 0,
+	];
+	$app->db()->query('
+		INSERT INTO content
+		(slug, title, content, user_id, posted_on, content_type, due_on, event_on, has_rsvp)
+		VALUES
+		(:slug, :title, :content, :user_id, :posted_on, :content_type, :due_on, :event_on, :has_rsvp)
+	',
+		$record);
+	$record['id'] = $app->db()->lastInsertId();
+
+	if(isset($_POST['group'])) {
+		if(!is_array($_POST['group'])) {
+			$_POST['group'] = array($_POST['group']);
+		}
+		foreach($_POST['group'] as $group_id) {
+			$app->db()->query('INSERT INTO eventgroup (group_id, event_id) VALUES (:group_id, :event_id)', ['group_id' => $group_id, 'event_id' => $record['id']]);
+		}
+	}
+
+	return $record;
+}
+
+
+$app->route('add_new_post', '/admin/new', $authdata, function(Request $request, Response $response, Pack32 $app) {
+	if(!$response['loggedin']) {
+		header('location: /');
+		die();
+	}
+	$record = add_content($request, $response, $app);
+	header('location: ' . $app->get_url('add_new'));
+	return 'ok';
+})->post();
+
 
 $app();
 
