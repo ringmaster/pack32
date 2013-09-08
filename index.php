@@ -73,6 +73,20 @@ $app->route('home', '/', $authdata, $buildmenu, function (Response $response, Pa
 		ORDER BY content.posted_on
 		DESC LIMIT 5
 	');
+	$response['upcoming'] = $app->db()->results('
+		SELECT *
+		FROM content
+		INNER JOIN
+		  eventgroup ON eventgroup.event_id = content.id
+		INNER JOIN
+			groups ON groups.id = eventgroup.group_id
+		WHERE
+			groups.is_global = 1
+			AND content_type = "event"
+			AND event_on > :now
+		ORDER BY content.posted_on ASC
+		LIMIT 20;
+	', ['now' => time()]);
 	$response['app'] = $app;
 	return $response->render('home.php');
 });

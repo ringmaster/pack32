@@ -85,6 +85,24 @@ body {
 
 #content {
 	margin: 20px 0px;
+	.clearfix();
+
+	.main {
+		width: 63%;
+		float: left;
+	}
+	.sidebar {
+		width: 33%;
+		float: right;
+		background: url(/img/tl.png) top left no-repeat;
+		padding: 22px 0 0 30px;
+		.box-sizing(border-box);
+		h2 {
+			font-size: 1.3em;
+			font-weight: bold;
+			margin-bottom: 15px;
+		}
+	}
 
 	article {
 		clear: both;
@@ -93,6 +111,7 @@ body {
 	h1 {
 		font-size: 2em;
 		margin-bottom: 15px;
+		font-weight: bold;
 	}
 
 	.content {
@@ -159,6 +178,14 @@ body {
 		i {
 			font-size: 24px;
 		}
+	}
+}
+
+#upcoming ol {
+	list-style: none;
+	li {
+		margin-left: 20px;
+		text-indent: -20px;
 	}
 }
 
