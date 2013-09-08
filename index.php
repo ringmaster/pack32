@@ -73,6 +73,7 @@ $app->route('home', '/', $authdata, $buildmenu, function (Response $response, Pa
 		ORDER BY content.posted_on
 		DESC LIMIT 5
 	');
+	$response['app'] = $app;
 	return $response->render('home.php');
 });
 
@@ -261,6 +262,53 @@ $app->route('add_new_post', '/admin/new', $authdata, function(Request $request, 
 	return 'ok';
 })->post();
 
+$app->route('paste_photo', '/admin/photo', $authdata, function(Request $request, Response $response, Pack32 $app) {
+	$dir = __DIR__ . '/data/';
+
+	$contentType = $_POST['contentType'];
+	$data = base64_decode($_POST['data']);
+
+	$filename = md5(date('YmdHis')) . '.png';
+	$file = $dir . $filename;
+
+	file_put_contents($file, $data);
+
+	echo json_encode(array('filelink' => '/data/' .$filename));
+});
+
+$app->route('upload_photo', '/admin/photo', $authdata, function(Request $request, Response $response, Pack32 $app) {
+	if(!$response['loggedin']) {
+		header('location: /');
+		die();
+	}
+
+	// files storage folder
+	$dir = __DIR__ . '/data/';
+
+	$_FILES['file']['type'] = strtolower($_FILES['file']['type']);
+
+	if ($_FILES['file']['type'] == 'image/png'
+		|| $_FILES['file']['type'] == 'image/jpg'
+		|| $_FILES['file']['type'] == 'image/gif'
+		|| $_FILES['file']['type'] == 'image/jpeg'
+		|| $_FILES['file']['type'] == 'image/pjpeg')
+	{
+		// setting file's mysterious name
+		do {
+			$file = $dir . md5(date('YmdHis')).'.jpg';
+		} while(file_exists($file));
+
+		// copying
+		move_uploaded_file($_FILES['file']['tmp_name'], $file);
+
+		// displaying file
+		$array = array(
+			'filelink' => '/data/' . $file
+		);
+
+		echo stripslashes(json_encode($array));
+	}
+});
 
 $app();
 

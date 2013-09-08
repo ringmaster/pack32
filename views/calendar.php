@@ -37,7 +37,7 @@
 			}
 		}
 	?>
-		<li class="<?= $cur_month ? 'current_month' : 'other_month'; ?> <?= $past ? 'past' : 'upcoming'; ?> <?= $empty ?>"><span class="date_weekday"><?= $current_date->format('D'); ?></span><span class="date_number"><?= $current_date->format('j') ?></span>
+		<li class="<?= $cur_month ? 'current_month' : 'other_month'; ?> <?= $past ? 'past' : 'upcoming'; ?> <?= $empty ?>"><span class="date_weekday"><?= $current_date->format('D'); ?> </span><span class="date_number"><?= $current_date->format('j') ?></span>
 			<?php
 			foreach($events as $event) :
 				if($event['event_on'] > $current_date->getTimestamp() && $event['event_on'] < $current_date->getTimestamp() + 86400):

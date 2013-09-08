@@ -51,7 +51,9 @@
 	$(function(){
 		$('#new_group').select2();
 		$('#new_content').redactor({
-			minHeight: 200
+			minHeight: 200,
+			imageUpload: <?= $app->get_url('image_upload') ?>,
+			clipboardUploadUrl: '<?= $app->get_url('paste_photo') ?>'
 		});
 	});
 </script>

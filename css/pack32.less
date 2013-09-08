@@ -8,6 +8,11 @@
 	&:after { content: ''; display: table; clear: both; }
 }
 
+#content img {
+	padding: 10px;
+	background: rgba(0,0,0,0.3);
+}
+
 body {
 	background: url(/img/bg.jpg) center;
 	color: #eee;
@@ -54,6 +59,7 @@ body {
 		background: url(/img/menu_btn_left.png) top left;
 		padding: 0px 0px 0px 10px;
 		box-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+		.clearfix();
 		&:hover {
 			box-shadow: 1px 1px 3px rgba(0,0,0,0.7);
 		}
@@ -79,6 +85,10 @@ body {
 
 #content {
 	margin: 20px 0px;
+
+	article {
+		clear: both;
+	}
 
 	h1 {
 		font-size: 2em;

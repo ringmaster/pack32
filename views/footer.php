@@ -8,15 +8,19 @@
 <script src="/js/select2/select2.min.js"></script>
 
 <script>
+	<?php if($loggedin): ?>
 	function add_content() {
 		$( "#dialog-form" ).load('<?= $app->get_url('add_new'); ?> #editor', function(){
 			$('#new_group').select2();
 			$('#new_content').redactor({
-				minHeight: 200
+				minHeight: 200,
+				imageUpload: '<?= $app->get_url('upload_photo') ?>',
+				clipboardUploadUrl: '<?= $app->get_url('paste_photo') ?>'
 			});
 			$( "#dialog-form").dialog('open');
 		});
 	}
+	<?php endif; ?>
 
 	$(function ()
 	{
