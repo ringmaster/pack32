@@ -222,10 +222,21 @@ $app->route('event', '/events/:slug', $authdata, $buildmenu, function(Request $r
 	if($article) {
 		$response['article'] = $article;
 		$response['title'] = $article['title'] . ' - Cub Scout Pack 32';
+		$response['app'] = $app;
 		return $response->render('event.php');
 	}
 	header('location: /');
 	return 'not found';
+});
+
+$app->route('delete', '/admin/delete/:id', $authdata, function(Request $request, Response $response, Pack32 $app) {
+	if(!$response['loggedin']) {
+		header('location: /');
+		die();
+	}
+	$app->db()->query('DELETE FROM content WHERE id = :id', ['id' => $request['id']]);
+	header('location: /');
+	echo "deleted";
 });
 
 $app->route('add_new', '/admin/new', $authdata, function(Request $request, Response $response, Pack32 $app) {

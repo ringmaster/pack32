@@ -5,7 +5,7 @@
 		<?php if ($loggedin): ?>
 			<div class="toolkit">
 				<a class="edit" href="#edit"><i class="icon-edit" title="edit article"></i></a>
-				<a class="delete" href="#delete"><i class="icon-trash" title="delete article"></i></a>
+				<a class="delete" href="<?= $app->get_url('delete', $article) ?>"><i class="icon-trash" title="delete article"></i></a>
 			</div>
 		<?php endif; ?>
 		<h1><?= $article['title'] ?></h1>
