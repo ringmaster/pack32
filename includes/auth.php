@@ -2,7 +2,7 @@
 
 namespace Microsite;
 
-$authdata = function(Response $response, Pack32 $app) {
+$app->middleware('auth', function(Response $response, Pack32 $app) {
 	if(isset($_SESSION['user_email'])) {
 		$response['currentuser'] = $_SESSION['user_email'];
 		$response['loggedin'] = true;
@@ -13,7 +13,7 @@ $authdata = function(Response $response, Pack32 $app) {
 		$response['loggedin'] = false;
 		$response['user'] = false;
 	}
-};
+});
 
 $app->route('login', '/auth/login', function (App $app) {
 	$assertion = $_POST['assertion'];

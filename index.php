@@ -15,6 +15,17 @@ class Pack32 extends App {
 	public function db() {
 		return $this->dispatch_object('db', func_get_args());
 	}
+
+	public function require_login() {
+		if(!$this->response()['loggedin']) {
+			header('location: /');
+			die('Must be logged in.');
+		};
+	}
+
+	public function loggedin() {
+		return $this->response()['loggedin'];
+	}
 }
 
 $app = new Pack32();
@@ -26,7 +37,7 @@ $app->template_dirs = [
 
 include 'includes/auth.php';
 
-$buildmenu = function(Response $response) {
+$app->middleware('menu', function(Response $response, Pack32 $app) {
 	$response['menu'] = [
 		[
 			'href' => '/',
@@ -37,7 +48,7 @@ $buildmenu = function(Response $response) {
 			'title' => 'Calendar',
 		]
 	];
-	if($response['loggedin']) {
+	if($app->loggedin()) {
 		$response['menu'][] = [
 			'href' => 'javascript:navigator.id.logout()',
 			'title' => 'Log Out',
@@ -48,6 +59,11 @@ $buildmenu = function(Response $response) {
 			'title' => 'Add Content',
 			'class' => 'login modaldlg',
 		];
+		$response['menu'][] = [
+			'href' => '/profile',
+			'title' => 'Your Profile',
+			'class' => 'login',
+		];
 	}
 	else {
 		$response['menu'][] = [
@@ -56,9 +72,11 @@ $buildmenu = function(Response $response) {
 			'class' => 'login',
 		];
 	}
-};
+});
 
-$app->route('home', '/', $authdata, $buildmenu, function (Response $response, Pack32 $app) {
+
+
+$app->route('home', '/', function (Response $response, Pack32 $app) {
 	$response['title'] = 'Cub Scout Pack 32 - Pickering Valley - Events, News, Calendar, &amp; Communication Center';
 	$response['articles'] = $app->db()->results('
 		SELECT *, content.id as id
@@ -73,7 +91,7 @@ $app->route('home', '/', $authdata, $buildmenu, function (Response $response, Pa
 		ORDER BY content.posted_on
 		DESC LIMIT 5
 	');
-	if($response['loggedin']) {
+	if($app->loggedin()) {
 		$usergroups = $app->db()->col('SELECT group_id FROM usergroup WHERE user_id = :user_id', ['user_id' => $response['user']['id']]);
 		if($usergroups) {
 			$usergroups = implode(',', $usergroups);
@@ -110,7 +128,6 @@ $app->route('home', '/', $authdata, $buildmenu, function (Response $response, Pa
 		';
 	}
 	$response['upcoming'] = $app->db()->results($sql, ['now' => time()]);
-	$response['app'] = $app;
 	return $response->render('home.php');
 });
 
@@ -149,7 +166,7 @@ $calendar = function(Request $request, Response $response, Pack32 $app){
 		GROUP BY content.id
 		ORDER BY content.posted_on';
 	}
-	elseif($response['loggedin']) {
+	elseif($app->loggedin()) {
 		$usergroups = $app->db()->col('SELECT group_id FROM usergroup WHERE user_id = :user_id', ['user_id' => $response['user']['id']]);
 		if($usergroups) {
 			$usergroups = implode(',', $usergroups);
@@ -199,18 +216,14 @@ $calendar = function(Request $request, Response $response, Pack32 $app){
 	$response['start_date'] = $start_date;
 	$response['end_date'] = $end_date;
 	$response['sel_date'] = $sel_date;
-	$response['app'] = $app;
 	return $response->render('calendar.php');
 };
 
-$app->route('calendar', '/calendar', $authdata, $buildmenu, $calendar);
-$app->route('calendar_date', '/calendar/:month/:year', $authdata, $buildmenu, $calendar);
+$app->route('calendar', '/calendar', $calendar);
+$app->route('calendar_date', '/calendar/:month/:year', $calendar);
 
-$app->route('edit', '/admin/article/:id', $authdata, function(Request $request, Response $response, Pack32 $app){
-	if(!$response['loggedin']) {
-		header('location: /');
-		die();
-	}
+$app->route('edit', '/admin/article/:id', function(Request $request, Response $response, Pack32 $app){
+	$app->require_login();
 
 	$id = $request['id'];
 	$post = $app->db()->row('SELECT * FROM content WHERE id = :id', compact('id'));
@@ -224,15 +237,11 @@ $app->route('edit', '/admin/article/:id', $authdata, function(Request $request, 
 	$response['groups'] = $app->db()->results('SELECT * FROM groups WHERE is_global <> 1 ORDER BY name');
 	$response['post'] = $post;
 	$response['action'] = $app->get_url('edit_post', compact('id'));
-	$response['app'] = $app;
 	return $response->render('new.php');
 })->get();
 
-$app->route('edit_post', '/admin/article/:id', $authdata, function(Request $request, Response $response, Pack32 $app){
-	if(!$response['loggedin']) {
-		header('location: /');
-		die();
-	}
+$app->route('edit_post', '/admin/article/:id', function(Request $request, Response $response, Pack32 $app){
+	$app->require_login();
 	$id = $request['id'];
 	$event_on = strtotime($_POST['event_on']);
 	$due_on = strtotime($_POST['due_on']);
@@ -276,36 +285,28 @@ $app->route('test', '/den/:den', function (Request $request) {
 	echo "Den: {$request['den']}";
 })->validate_fields([':den' => '[0-9]+']);
 
-$app->route('event', '/events/:slug', $authdata, $buildmenu, function(Request $request, Response $response, Pack32 $app) {
+$app->route('event', '/events/:slug', function(Request $request, Response $response, Pack32 $app) {
 	$article = $app->db()->row('SELECT * FROM content WHERE slug = :slug', ['slug' => $request['slug']]);
 	if($article) {
 		$response['article'] = $article;
 		$response['groups'] = $app->db()->results('SELECT * FROM eventgroup INNER JOIN groups ON group_id = groups.id WHERE event_id = :event_id', ['event_id' => $article->id]);
 		$response['title'] = $article['title'] . ' - Cub Scout Pack 32';
-		$response['app'] = $app;
 		return $response->render('event.php');
 	}
 	header('location: /');
 	return 'not found';
 });
 
-$app->route('delete', '/admin/delete/:id', $authdata, function(Request $request, Response $response, Pack32 $app) {
-	if(!$response['loggedin']) {
-		header('location: /');
-		die();
-	}
+$app->route('delete', '/admin/delete/:id', function(Request $request, Response $response, Pack32 $app) {
+	$app->require_login();
 	$app->db()->query('DELETE FROM content WHERE id = :id', ['id' => $request['id']]);
 	header('location: /');
 	echo "deleted";
 });
 
-$app->route('add_new', '/admin/new', $authdata, function(Request $request, Response $response, Pack32 $app) {
-	if(!$response['loggedin']) {
-		header('location: /');
-		die();
-	}
+$app->route('add_new', '/admin/new', function(Request $request, Response $response, Pack32 $app) {
+	$app->require_login();
 	$user_groups = $app->db()->col('SELECT group_id FROM usergroup WHERE user_id = :user_id', ['user_id' => $response['user']['id']]);
-	$response['app'] = $app;
 	$response['post'] = [
 		'title' => '',
 		'content_type' => 'event',
@@ -376,17 +377,14 @@ function add_content(Request $request, Response $response, Pack32 $app) {
 }
 
 
-$app->route('add_new_post', '/admin/new', $authdata, function(Request $request, Response $response, Pack32 $app) {
-	if(!$response['loggedin']) {
-		header('location: /');
-		die();
-	}
+$app->route('add_new_post', '/admin/new', function(Request $request, Response $response, Pack32 $app) {
+	$app->require_login();
 	$record = add_content($request, $response, $app);
 	header('location: ' . $app->get_url('add_new'));
 	return 'ok';
 })->post();
 
-$app->route('paste_photo', '/admin/photo', $authdata, function(Request $request, Response $response, Pack32 $app) {
+$app->route('paste_photo', '/admin/photo', function(Request $request, Response $response, Pack32 $app) {
 	$dir = __DIR__ . '/data/';
 
 	$contentType = $_POST['contentType'];
@@ -400,11 +398,8 @@ $app->route('paste_photo', '/admin/photo', $authdata, function(Request $request,
 	echo json_encode(array('filelink' => '/data/' .$filename));
 });
 
-$app->route('upload_photo', '/admin/photo', $authdata, function(Request $request, Response $response, Pack32 $app) {
-	if(!$response['loggedin']) {
-		header('location: /');
-		die();
-	}
+$app->route('upload_photo', '/admin/photo', function(Request $request, Response $response, Pack32 $app) {
+	$app->require_login();
 
 	// files storage folder
 	$dir = __DIR__ . '/data/';
@@ -432,6 +427,14 @@ $app->route('upload_photo', '/admin/photo', $authdata, function(Request $request
 
 		echo stripslashes(json_encode($array));
 	}
+});
+
+$app->route('profile', '/profile', function(Request $request, Response $response, Pack32 $app){
+	$app->require_login();
+	$response['title'] = 'Your Profile - Cub Scout Pack 32';
+	$response['groups'] = $app->db()->results('SELECT * FROM groups WHERE is_global = 0 ORDER BY name');
+	$response['subscribed'] = $app->db()->results('SELECT groups.id, groups.name as group_name, usergroup.id as ug_id, usergroup.name FROM groups INNER JOIN usergroup ON groups.id = usergroup.group_id WHERE groups.is_global = 0 ORDER BY groups.name');
+	return $response->render('profile.php');
 });
 
 $app();

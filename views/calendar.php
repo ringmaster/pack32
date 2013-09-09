@@ -10,8 +10,8 @@
 	$prev_month->sub(new \DateInterval('P1M'));
 	?>
 	<div class="cal_nav">
-		<a href="<?= $app->get_url('calendar_date', ['month' => $prev_month->format('m'), 'year' => $prev_month->format('Y')]) ?>">&laquo;<?= $prev_month->format('F Y') ?></a>
-		<a href="<?= $app->get_url('calendar_date', ['month' => $next_month->format('m'), 'year' => $next_month->format('Y')]) ?>"><?= $next_month->format('F Y') ?>&raquo;</a>
+		<a href="<?= $_app->get_url('calendar_date', ['month' => $prev_month->format('m'), 'year' => $prev_month->format('Y')]) ?>">&laquo;<?= $prev_month->format('F Y') ?></a>
+		<a href="<?= $_app->get_url('calendar_date', ['month' => $next_month->format('m'), 'year' => $next_month->format('Y')]) ?>"><?= $next_month->format('F Y') ?>&raquo;</a>
 	</div>
 
 	<ol class="calendar clearfix">
@@ -48,7 +48,7 @@
 							<?php foreach($event['groups'] as $group): ?>
 							<small class="group"><?= $group['name'] ?></small>
 							<?php endforeach; ?>
-							<a href="<?= $app->get_url('event', ['slug' => $event['slug']]) ?>"><?= $event['title'] ?></a></div></li>
+							<a href="<?= $_app->get_url('event', ['slug' => $event['slug']]) ?>"><?= $event['title'] ?></a></div></li>
 			<?php
 				endif;
 			endforeach;
@@ -65,7 +65,7 @@
 <script>
 	$(function(){
 		$('.cal_cell').on('dblclick', function(){
-			var href = '<?= $app->get_url('add_new') ?>?etime=' + $(this).data('date') + ' #editor';
+			var href = '<?= $_app->get_url('add_new') ?>?etime=' + $(this).data('date') + ' #editor';
 			$( "#dialog-form" ).load(href, openModal);
 		})
 	})
