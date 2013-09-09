@@ -6,6 +6,7 @@
 	<link rel="stylesheet" href="/js/select2/select2.css" type="text/css">
 	<link rel="stylesheet" href="http://code.jquery.com/ui/1.10.3/themes/smoothness/jquery-ui.css" type="text/css">
 	<link href="//netdna.bootstrapcdn.com/font-awesome/3.2.1/css/font-awesome.css" rel="stylesheet">
+<meta name="viewport" content="width=device-width">
 	<meta http-equiv="X-UA-Compatible" content="IE=Edge">
 	<!--[if lt IE 9]>
 	<script src="/js/html5shiv.js"></script>
