@@ -44,7 +44,7 @@ $buildmenu = function(Response $response) {
 			'class' => 'login',
 		];
 		$response['menu'][] = [
-			'href' => '/admin/new',
+			'href' => '/admin/new#editor',
 			'title' => 'Add Content',
 			'class' => 'login modaldlg',
 		];
@@ -206,12 +206,63 @@ $calendar = function(Request $request, Response $response, Pack32 $app){
 $app->route('calendar', '/calendar', $authdata, $buildmenu, $calendar);
 $app->route('calendar_date', '/calendar/:month/:year', $authdata, $buildmenu, $calendar);
 
-$app->route('edit_article', '/admin/article', $authdata, function(){
-	$id = $_POST['id'];
-	$title = $_POST['title'];
-	$content = $_POST['content'];
+$app->route('edit', '/admin/article/:id', $authdata, function(Request $request, Response $response, Pack32 $app){
+	if(!$response['loggedin']) {
+		header('location: /');
+		die();
+	}
 
-	var_dump($_POST);
+	$id = $request['id'];
+	$post = $app->db()->row('SELECT * FROM content WHERE id = :id', compact('id'));
+	if(!$post) {
+		header('location: /');
+		die('not found');
+	}
+	$post['groups'] = $app->db()->col('SELECT group_id FROM eventgroup WHERE event_id = :id', compact('id'));
+
+	$response['global_groups'] = $app->db()->results('SELECT * FROM groups WHERE is_global = 1 ORDER BY name');
+	$response['groups'] = $app->db()->results('SELECT * FROM groups WHERE is_global <> 1 ORDER BY name');
+	$response['post'] = $post;
+	$response['action'] = $app->get_url('edit_post', compact('id'));
+	$response['app'] = $app;
+	return $response->render('new.php');
+})->get();
+
+$app->route('edit_post', '/admin/article/:id', $authdata, function(Request $request, Response $response, Pack32 $app){
+	if(!$response['loggedin']) {
+		header('location: /');
+		die();
+	}
+	$id = $request['id'];
+	$event_on = strtotime($_POST['event_on']);
+	$due_on = strtotime($_POST['due_on']);
+
+	$record = [
+		'id' => $id,
+		'title' => $_POST['title'],
+		'content' => $_POST['content'],
+		'content_type' => $_POST['content_type'],
+		'due_on' => $due_on,
+		'event_on' => $event_on,
+		'has_rsvp' => 0,
+	];
+	$app->db()->query('
+		UPDATE content
+		SET title = :title, content = :content, content_type = :content_type, due_on = :due_on, event_on = :event_on, has_rsvp = :has_rsvp
+		WHERE id = :id
+	',
+		$record);
+
+	$app->db()->query('DELETE FROM eventgroup WHERE event_id = :id', compact('id'));
+	if(isset($_POST['group'])) {
+		if(!is_array($_POST['group'])) {
+			$_POST['group'] = array($_POST['group']);
+		}
+		foreach($_POST['group'] as $group_id) {
+			$app->db()->query('INSERT INTO eventgroup (group_id, event_id) VALUES (:group_id, :event_id)', ['group_id' => $group_id, 'event_id' => $id]);
+		}
+	}
+	header('location: ' . $_SERVER['HTTP_REFERER']);
 
 })->post();
 
@@ -252,7 +303,16 @@ $app->route('add_new', '/admin/new', $authdata, function(Request $request, Respo
 		header('location: /');
 		die();
 	}
+	$user_groups = $app->db()->col('SELECT group_id FROM usergroup WHERE user_id = :user_id', ['user_id' => $response['user']['id']]);
 	$response['app'] = $app;
+	$response['post'] = [
+		'title' => '',
+		'content_type' => 'event',
+		'content' => '',
+		'event_on' => isset($_GET['etime']) ? $_GET['etime'] : time(),
+		'groups' => $user_groups ? $user_groups : [],
+	];
+	$response['action'] = $app->get_url('add_new_post');
 	$response['groups'] = $app->db()->results('SELECT * FROM groups ORDER BY is_global = 0, name');
 	return $response->render('new.php');
 })->get();

@@ -38,7 +38,7 @@
 			}
 		}
 	?>
-		<li class="<?= $cur_month ? 'current_month' : 'other_month'; ?> <?= $past ? 'past' : 'upcoming'; ?> <?= $empty ?> <?= $today ?>"><span class="date_weekday"><?= $current_date->format('D'); ?> </span><span class="date_number"><?= $current_date->format('j') ?></span>
+		<li data-date="<?= $current_date->getTimestamp() ?>" class="cal_cell <?= $cur_month ? 'current_month' : 'other_month'; ?> <?= $past ? 'past' : 'upcoming'; ?> <?= $empty ?> <?= $today ?>"><span class="date_weekday"><?= $current_date->format('D'); ?> </span><span class="date_number"><?= $current_date->format('j') ?></span>
 			<ul>
 			<?php
 			foreach($events as $event) :
@@ -60,8 +60,16 @@
 	endwhile;
 	?>
 	</ol>
-
 </main>
+
+<script>
+	$(function(){
+		$('.cal_cell').on('dblclick', function(){
+			var href = '<?= $app->get_url('add_new') ?>?etime=' + $(this).data('date') + ' #editor';
+			$( "#dialog-form" ).load(href, openModal);
+		})
+	})
+</script>
 
 <?php include 'footer.php'; ?>
 

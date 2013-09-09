@@ -9,50 +9,57 @@
 
 <script>
 	<?php if($loggedin): ?>
-	function add_content() {
-		$( "#dialog-form" ).load('<?= $app->get_url('add_new'); ?> #editor', function(){
-			$('#new_group').select2();
-			$('#new_content').redactor({
-				minHeight: 200,
-				imageUpload: '<?= $app->get_url('upload_photo') ?>',
-				clipboardUploadUrl: '<?= $app->get_url('paste_photo') ?>',
-				autoresize: false
-			});
-			$( "#dialog-form").dialog('open');
+	function openModal() {
+		$('#new_group').select2();
+		$('#new_content').redactor({
+			minHeight: 200,
+			imageUpload: '<?= $app->get_url('upload_photo') ?>',
+			clipboardUploadUrl: '<?= $app->get_url('paste_photo') ?>',
+			autoresize: false
 		});
+		$( "#dialog-form").dialog('open');
+	}
+
+	function add_content() {
+		$( "#dialog-form" ).load('<?= $app->get_url('add_new'); ?> #editor', openModal);
 	}
 	<?php endif; ?>
 
 	$(function ()
 	{
 		$( "#dialog-form" ).dialog({
-			title: 'Add Content',
+			title: '',
 			autoOpen: false,
 			height: 620,
 			width: 680,
 			modal: true,
 			buttons: {
 				Cancel: function() {
-					$( this ).dialog( "close" );
+					$(this).dialog( "close" );
+				},
+				Submit: function() {
+					$(this).find('form').submit();
 				}
 			}
 		});
 
-		$('.modaldlg a').on('click', function(ev){
-			add_content();
+		$('.modaldlg a, a.modaldlg').on('click', function(ev){
+			var href = $(this).attr('href').replace(/(#.\w+$)/, ' $1');
+			$( "#dialog-form" ).load(href, openModal);
 			ev.preventDefault();
 			return false;
 		});
 
 
+
 		<?php if($loggedin): ?>
-		$('.edit').on('click', function ()
-		{
-			var post = $(this).closest('.post');
-			post.find('.content').redactor({
-				//air: true
-			});
+		$('.delete').on('click', function(ev){
+			var href = $(this).attr('href');
+			if(!confirm('Are you sure you want to delete this?')) {
+				ev.preventDefault();
+			}
 		});
+
 		<?php endif; ?>
 
 		navigator.id.watch({

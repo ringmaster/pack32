@@ -17,30 +17,36 @@
 <main id="editor">
 
 
-	<form method="post" action="<?= $app->get_url('add_new_post') ?>">
+	<form method="post" action="<?= $action ?>">
 
 		<label for="new_title">Title</label>
-		<input id="new_title" name="title" type="text" placeholder="Title" class="input-1">
+		<input id="new_title" name="title" type="text" placeholder="Title" class="input-1" value="<?= $post['title'] ?>">
 
 		<fieldset>
-			<label><input type="radio" name="content_type" value="article"> Article</label>
-			<label><input type="radio" name="content_type" value="event" checked> Event</label>
+			<label><input type="radio" name="content_type" value="article" <?= $post['content_type'] == 'article' ? 'checked' : '' ?>> Article</label>
+			<label><input type="radio" name="content_type" value="event" <?= $post['content_type'] == 'event' ? 'checked' : '' ?>> Event</label>
 		</fieldset>
 
-		<select multiple name="group" id="new_group" class="input-1">
-			<?php foreach($groups as $group): ?>
-			<option value="<?= $group['id'] ?>"><?= $group['name'] ?></option>
+		<select multiple name="group[]" id="new_group" class="input-1">
+			<optgroup label="Public">
+			<?php foreach($global_groups as $group): ?>
+					<option value="<?= $group['id'] ?>" <?= in_array($group['id'], $post['groups']) ? 'selected' : '' ?>><?= $group['name'] ?></option>
 			<?php endforeach; ?>
+			</optgroup>
+			<optgroup label="Private">
+				<?php foreach($groups as $group): ?>
+					<option value="<?= $group['id'] ?>" <?= in_array($group['id'], $post['groups']) ? 'selected' : '' ?>><?= $group['name'] ?></option>
+				<?php endforeach; ?>
+			</optgroup>
 		</select>
 
-		<textarea id="new_content" name="content" class="input-1" style="min-height:200px;"></textarea>
+		<textarea id="new_content" name="content" class="input-1" style="min-height:200px;"><?= htmlspecialchars($post['content']) ?></textarea>
 
 		<fieldsset>
 			<label for="new_event_on">Event On</label>
-			<input type="date" name="event_on" id="new_event_on">
+			<input type="date" name="event_on" id="new_event_on" value="<?= date('Y-m-d', $post['event_on']) ?>">
 		</fieldsset>
 
-		<input type="submit" class="button" value="Save &amp; Send">
 	</form>
 
 </main>
