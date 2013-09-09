@@ -1,5 +1,6 @@
 <footer id="footer">
-
+	<a href="http://beascout.org">Be a Scout!</a><br>
+	<a href="http://www.scouting.org/">Boy Scouts of America</a><br>
 </footer>
 
 <div id="dialog-form"></div>
