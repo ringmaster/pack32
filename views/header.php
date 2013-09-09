@@ -17,7 +17,7 @@
 <body>
 <div class="wrapper">
 	<header id="header">
-		<h1>Cub Scout Pack 32</h1>
+		<h1><a href="/">Cub Scout Pack 32</a></h1>
 	</header>
 </div>
 <nav id="nav">
