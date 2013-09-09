@@ -263,6 +263,7 @@ $app->route('edit_post', '/admin/article/:id', $authdata, function(Request $requ
 		}
 	}
 	header('location: ' . $_SERVER['HTTP_REFERER']);
+	die('updated');
 
 })->post();
 
