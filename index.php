@@ -19,7 +19,7 @@ class Pack32 extends App {
 	}
 
 	public function require_login() {
-		if(!$this->response()['loggedin']) {
+		if(!$this->loggedin()) {
 			header('location: /');
 			die('Must be logged in.');
 		};
@@ -27,6 +27,13 @@ class Pack32 extends App {
 
 	public function loggedin() {
 		return $this->response()['loggedin'];
+	}
+
+	public function require_editing() {
+		if(!$this->can_edit()) {
+			header('location: /');
+			die('Must be logged in.');
+		}
 	}
 
 	public function can_edit() {
@@ -254,7 +261,7 @@ $app->route('calendar', '/calendar', $calendar);
 $app->route('calendar_date', '/calendar/:month/:year', $calendar);
 
 $app->route('edit', '/admin/article/:id', function(Request $request, Response $response, Pack32 $app){
-	$app->require_login();
+	$app->require_editing();
 
 	$id = $request['id'];
 	$post = $app->db()->row('SELECT * FROM content WHERE id = :id', compact('id'));
@@ -272,7 +279,7 @@ $app->route('edit', '/admin/article/:id', function(Request $request, Response $r
 })->get();
 
 $app->route('edit_post', '/admin/article/:id', function(Request $request, Response $response, Pack32 $app){
-	$app->require_login();
+	$app->require_editing();
 	$id = $request['id'];
 	$event_on = strtotime($_POST['event_on']);
 	$due_on = strtotime($_POST['due_on']);
@@ -330,14 +337,14 @@ $app->route('event', '/events/:slug', function(Request $request, Response $respo
 });
 
 $app->route('delete', '/admin/delete/:id', function(Request $request, Response $response, Pack32 $app) {
-	$app->require_login();
+	$app->require_editing();
 	$app->db()->query('DELETE FROM content WHERE id = :id', ['id' => $request['id']]);
 	header('location: /');
 	echo "deleted";
 });
 
 $app->route('add_new', '/admin/new', function(Request $request, Response $response, Pack32 $app) {
-	$app->require_login();
+	$app->require_editing();
 	$user_groups = $app->db()->col('SELECT group_id FROM usergroup WHERE user_id = :user_id', ['user_id' => $response['user']['id']]);
 	$response['post'] = [
 		'title' => '',
@@ -411,7 +418,7 @@ function add_content(Request $request, Response $response, Pack32 $app) {
 
 
 $app->route('add_new_post', '/admin/new', function(Request $request, Response $response, Pack32 $app) {
-	$app->require_login();
+	$app->require_editing();
 	$record = add_content($request, $response, $app);
 	header('location: ' . $app->get_url('add_new'));
 	$app->add_message('Added content.', 'success');
@@ -433,7 +440,7 @@ $app->route('paste_photo', '/admin/photo', function(Request $request, Response $
 });
 
 $app->route('upload_photo', '/admin/photo', function(Request $request, Response $response, Pack32 $app) {
-	$app->require_login();
+	$app->require_editing();
 
 	// files storage folder
 	$dir = __DIR__ . '/data/';
