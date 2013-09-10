@@ -510,7 +510,8 @@ $app->route('profile', '/profile', function(Request $request, Response $response
 	$app->require_login();
 	$response['title'] = 'Your Profile - ' . ORG_NAME;
 	$response['groups'] = $app->db()->results('SELECT * FROM groups WHERE is_global = 0 ORDER BY name');
-	$response['subscribed'] = $app->db()->results('SELECT groups.id, groups.name as group_name, usergroup.id as ug_id, usergroup.name FROM groups INNER JOIN usergroup ON groups.id = usergroup.group_id WHERE groups.is_global = 0 ORDER BY groups.name');
+	$user_id = $response['user']['id'];
+	$response['subscribed'] = $app->db()->results('SELECT groups.id, groups.name as group_name, usergroup.id as ug_id, usergroup.name FROM groups INNER JOIN usergroup ON groups.id = usergroup.group_id WHERE groups.is_global = 0 AND user_id = :user_id ORDER BY groups.name', compact('user_id'));
 	return $response->render('profile.php');
 })->get();
 
