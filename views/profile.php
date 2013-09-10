@@ -4,8 +4,11 @@
 	<h1>Your Profile</h1>
 	<p>You are logged in as <?= $_response['currentuser'] ?>.</p>
 	<form method="post" action="" class="whiteform">
-		<label for="profile_name">Your Name</label>
-		<input type="text" id="profile_name" name="profile_name" value="<?= $_response['user']['username'] ?>">
+		<fieldset>
+			<legend>About You</legend>
+			<label for="profile_name">Your Name</label>
+			<input type="text" id="profile_name" name="profile_name" value="<?= $_response['user']['username'] ?>">
+		</fieldset>
 		<fieldset>
 			<legend>Subscribed Groups</legend>
 			<p>
@@ -27,7 +30,7 @@
 						<?php foreach($groups as $group): ?>
 							<option value="<?= $group['id'] ?>"><?= $group['name'] ?></option>
 						<?php endforeach; ?>
-					</select></span><span class="new_member_notice">Check this box to add a new member.</span></li>
+					</select></span><label for="new_member" class="new_member_notice">Check this box to add a new member.</label></li>
 			</ul>
 		</fieldset>
 		<input type="submit" class="button" value="Update">
