@@ -521,7 +521,7 @@ $app->route('profile_post', '/profile', function(Request $request, Response $res
 	$user_id = $response['user']['id'];
 
 	$name = $_POST['profile_name'];
-	$app->db()->query('UPDATE users SET username = :name', compact('name'));
+	$app->db()->query('UPDATE users SET username = :name WHERE id = :user_id', compact('name', 'user_id'));
 
 	$app->db()->query('DELETE FROM usergroup WHERE user_id = :user_id', compact('user_id'));
 	if(isset($_POST['usergroup'])) {
