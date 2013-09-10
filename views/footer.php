@@ -37,7 +37,7 @@
 			autoOpen: false,
 			height: 620,
 			width: 680,
-			modal: true,
+			//modal: true,
 			buttons: {
 				Cancel: function() {
 					$(this).dialog( "close" );
