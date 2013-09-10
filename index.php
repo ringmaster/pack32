@@ -436,7 +436,36 @@ $app->route('profile', '/profile', function(Request $request, Response $response
 	$response['groups'] = $app->db()->results('SELECT * FROM groups WHERE is_global = 0 ORDER BY name');
 	$response['subscribed'] = $app->db()->results('SELECT groups.id, groups.name as group_name, usergroup.id as ug_id, usergroup.name FROM groups INNER JOIN usergroup ON groups.id = usergroup.group_id WHERE groups.is_global = 0 ORDER BY groups.name');
 	return $response->render('profile.php');
-});
+})->get();
+
+$app->route('profile_post', '/profile', function(Request $request, Response $response, Pack32 $app){
+	$app->require_login();
+
+	$user_id = $response['user']['id'];
+
+	$name = $_POST['profile_name'];
+	$app->db()->query('UPDATE users SET username = :name', compact('name'));
+
+	$app->db()->query('DELETE FROM usergroup WHERE user_id = :user_id', compact('user_id'));
+	if(isset($_POST['usergroup'])) {
+		foreach($_POST['usergroup'] as $member) {
+			if(isset($member['subscribed']) && $member['subscribed'] == 'true') {
+				$name = $member['name'];
+				$group_id = $member['group_id'];
+				$app->db()->query('INSERT INTO usergroup (name, group_id, user_id) values (:name, :group_id, :user_id)', compact('name', 'group_id', 'user_id'));
+			}
+		}
+	}
+
+	if(isset($_POST['new_member']) && $_POST['new_member'] == 'true') {
+		$name = $_POST['new_member_name'];
+		$group_id = $_POST['new_member_group'];
+		$app->db()->query('INSERT INTO usergroup (name, group_id, user_id) values (:name, :group_id, :user_id)', compact('name', 'group_id', 'user_id'));
+	}
+
+	header('location: ' . $app->get_url('profile'));
+	die('redirecting');
+})->post();
 
 $app();
 

@@ -113,7 +113,7 @@ CREATE TABLE `usergroup` (
   `group_id` int(11) UNSIGNED NOT NULL,
   `name` varchar(255) NOT NULL,
   PRIMARY KEY(`id`),
-  UNIQUE INDEX `idx_usergroup`(`user_id`, `group_id`)
+  UNIQUE INDEX `idx_usergroup`(`user_id`, `group_id`, `name`)
 )
   ENGINE=MYISAM
   CHARACTER SET utf8

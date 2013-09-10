@@ -293,10 +293,22 @@ body {
 .whiteform {
 	background-color: white;
 	padding:20px;
-	p {
-		color: #333;
+	color: #333;
+}
+
+.new_member_inputs {
+	display: none;
+	.active & {
+		display: inline;
 	}
 }
+.new_member_notice {
+	display: inline;
+	.active & {
+		display: none;
+	}
+}
+
 
 #footer {
 	min-height: 90px;

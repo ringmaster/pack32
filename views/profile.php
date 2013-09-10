@@ -5,7 +5,7 @@
 	<p>You are logged in as <?= $_response['currentuser'] ?>.</p>
 	<form method="post" action="" class="whiteform">
 		<label for="profile_name">Your Name</label>
-		<input type="text" id="profile_name" value="<?= $_response['user']['username'] ?>">
+		<input type="text" id="profile_name" name="profile_name" value="<?= $_response['user']['username'] ?>">
 		<fieldset>
 			<legend>Subscribed Groups</legend>
 			<p>
@@ -17,22 +17,36 @@
 			</p>
 			<ul>
 			<?php foreach($subscribed as $subscribe): ?>
-				<li><input type="checkbox" name="usergroup[<?= $subscribe['id'] ?>][subscribed]" value="<?= $subscribe['id'] ?>" checked placeholder="Group Member's Name"> <input name="usergroup[<?= $subscribe['id'] ?>][name]" type="text" value="<?= $subscribe['name'] ?>"> <select name="usergroup[<?= $subscribe['ug_id'] ?>][group_id]">
+				<li><input type="checkbox" name="usergroup[<?= $subscribe['ug_id'] ?>][subscribed]" value="true" checked placeholder="Group Member's Name"> <input name="usergroup[<?= $subscribe['ug_id'] ?>][name]" type="text" value="<?= $subscribe['name'] ?>"> <select name="usergroup[<?= $subscribe['ug_id'] ?>][group_id]">
 					<?php foreach($groups as $group): ?>
-						<option value="<?= $group['id'] ?>"><?= $group['name'] ?></option>
+						<option value="<?= $group['id'] ?>" <?= $group['id'] == $subscribe['id'] ? 'selected' : '' ?>><?= $group['name'] ?></option>
 					<?php endforeach; ?>
 				</select></li>
 			<?php endforeach; ?>
-				<li><input type="checkbox" name="new_member" value="" checked placeholder="Group Member's Name"> <input type="text" name="new_member_name" value=""> <select name="new_member_group">
+				<li><input type="checkbox" id="new_member" name="new_member" value="true" placeholder="Group Member's Name"> <span class="new_member_inputs"><input type="text" name="new_member_name" value=""> <select name="new_member_group">
 						<?php foreach($groups as $group): ?>
 							<option value="<?= $group['id'] ?>"><?= $group['name'] ?></option>
 						<?php endforeach; ?>
-					</select></li>
+					</select></span><span class="new_member_notice">Check this box to add a new member.</span></li>
 			</ul>
 		</fieldset>
 		<input type="submit" class="button" value="Update">
 	</form>
 </main>
+
+<script>
+	$(function(){
+		$('#new_member').on('change', function(){
+			$checkbox = $(this);
+			if($checkbox.is(':checked')) {
+				$checkbox.closest('li').addClass('active');
+			}
+			else {
+				$checkbox.closest('li').removeClass('active');
+			}
+		});
+	});
+</script>
 
 <?php include 'footer.php'; ?>
 
