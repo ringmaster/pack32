@@ -24,7 +24,15 @@
 <nav id="nav">
 	<ol>
 		<?php foreach ($menu as $item): ?>
-			<li class="<?= isset($item['class']) ? $item['class'] : '' ?>"><a href="<?= $item['href'] ?>"><?= $item['title'] ?></a></li>
+			<li class="<?= isset($item['class']) ? $item['class'] : '' ?>"><a href="<?= $item['href'] ?>"><?= $item['title'] ?></a>
+				<?php if(isset($item['submenu'])): ?>
+				<ol class="submenu">
+					<?php foreach($item['submenu'] as $subitem): ?>
+					<li class="<?= isset($subitem['class']) ? $subitem['class'] : '' ?>"><a href="<?= $subitem['href'] ?>"><?= $subitem['title'] ?></a></li>
+					<?php endforeach; ?>
+				</ol>
+				<?php endif; ?>
+			</li>
 		<?php endforeach; ?>
 	</ol>
 </nav>

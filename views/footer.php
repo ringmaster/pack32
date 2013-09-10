@@ -51,6 +51,11 @@
 			return false;
 		});
 
+		$('.toggle_menu > a').on('click', function(ev){
+			ev.preventDefault();
+			$(this).closest('.toggle_menu').toggleClass('active');
+		});
+
 
 
 		<?php if($_app->can_edit()): ?>

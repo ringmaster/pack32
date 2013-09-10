@@ -52,24 +52,31 @@ $app->middleware('menu', function(Response $response, Pack32 $app) {
 			'title' => 'Calendar',
 		]
 	];
+	$response['submenu'] = [];
 	if($app->loggedin()) {
-		$response['menu'][] = [
-			'href' => 'javascript:navigator.id.logout()',
-			'title' => 'Log Out',
-			'class' => 'login',
+		$response['menu']['options'] = [
+			'href' => '#options',
+			'title' => 'options <i class="icon-collapse"></i>',
+			'class' => 'login toggle_menu',
+			'submenu' => [
+				[
+					'href' => '/profile',
+					'title' => 'Your Profile',
+					'class' => '',
+				],
+				[
+					'href' => 'javascript:navigator.id.logout()',
+					'title' => 'Log Out',
+				],
+			],
 		];
 		if($app->can_edit()) {
-			$response['menu'][] = [
+			array_unshift($response['menu']['options']['submenu'], [
 				'href' => '/admin/new#editor',
 				'title' => 'Add Content',
-				'class' => 'login modaldlg',
-			];
+				'class' => 'modaldlg',
+			]);
 		}
-		$response['menu'][] = [
-			'href' => '/profile',
-			'title' => 'Your Profile',
-			'class' => 'login',
-		];
 	}
 	else {
 		$response['menu'][] = [
