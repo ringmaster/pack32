@@ -67,6 +67,11 @@
 		});
 		<?php endif; ?>
 
+		Messenger.options = {
+			extraClasses: 'messenger-fixed messenger-on-top messenger-on-right',
+			theme: 'future'
+		}
+
 		<?php if(!$_app->profile_complete()): ?>
 		Messenger().post({
 			message: "You have not completed your profile.",
@@ -83,6 +88,12 @@
 			}
 		});
 		<?php endif; ?>
+		<?php if(isset($_SESSION['messages'])): foreach($_SESSION['messages'] as $message): ?>
+		Messenger().post({
+			message: '<?= htmlspecialchars($message['message']) ?>',
+			type: '<?= htmlspecialchars($message['type']) ?>'
+		});
+		<?php endforeach; unset($_SESSION['messages']); endif; ?>
 
 		navigator.id.watch({
 			<?php if($loggedin): ?>

@@ -39,6 +39,13 @@ class Pack32 extends App {
 			return true;
 		}
 	}
+
+	public function add_message($message, $type='info') {
+		if(!isset($_SESSION['messages'])) {
+			$_SESSION['messages'] = [];
+		}
+		$_SESSION['messages'][] = compact('message', 'type');
+	}
 }
 
 $app = new Pack32();
@@ -293,6 +300,7 @@ $app->route('edit_post', '/admin/article/:id', function(Request $request, Respon
 			$app->db()->query('INSERT INTO eventgroup (group_id, event_id) VALUES (:group_id, :event_id)', ['group_id' => $group_id, 'event_id' => $id]);
 		}
 	}
+	$app->add_message('Updated content.', 'success');
 	header('location: ' . $_SERVER['HTTP_REFERER']);
 	die('updated');
 
@@ -404,6 +412,7 @@ $app->route('add_new_post', '/admin/new', function(Request $request, Response $r
 	$app->require_login();
 	$record = add_content($request, $response, $app);
 	header('location: ' . $app->get_url('add_new'));
+	$app->add_message('Added content.', 'success');
 	return 'ok';
 })->post();
 
@@ -484,6 +493,7 @@ $app->route('profile_post', '/profile', function(Request $request, Response $res
 		$group_id = $_POST['new_member_group'];
 		$app->db()->query('INSERT INTO usergroup (name, group_id, user_id) values (:name, :group_id, :user_id)', compact('name', 'group_id', 'user_id'));
 	}
+	$app->add_message('Updated profile.', 'success');
 
 	header('location: ' . $app->get_url('profile'));
 	die('redirecting');
