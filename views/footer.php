@@ -94,8 +94,8 @@
 		<?php endif; ?>
 		<?php if(isset($_SESSION['messages'])): foreach($_SESSION['messages'] as $message): ?>
 		Messenger().post({
-			message: '<?= htmlspecialchars($message['message']) ?>',
-			type: '<?= htmlspecialchars($message['type']) ?>'
+			message: '<?= htmlspecialchars($message['message'], ENT_QUOTES | ENT_SUBSTITUTE, 'utf-8') ?>',
+			type: '<?= htmlspecialchars($message['type'], ENT_QUOTES | ENT_SUBSTITUTE, 'utf-8') ?>'
 		});
 		<?php endforeach; unset($_SESSION['messages']); endif; ?>
 

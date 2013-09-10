@@ -40,7 +40,7 @@
 			</optgroup>
 		</select>
 
-		<textarea id="new_content" name="content" class="input-1" style="min-height:200px;"><?= htmlspecialchars($post['content']) ?></textarea>
+		<textarea id="new_content" name="content" class="input-1" style="min-height:200px;"><?= htmlspecialchars($post['content'], ENT_QUOTES | ENT_SUBSTITUTE, 'utf-8') ?></textarea>
 
 		<fieldsset>
 			<label for="new_event_on">Event On</label>
