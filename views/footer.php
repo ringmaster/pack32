@@ -19,6 +19,7 @@
 			minHeight: 200,
 			imageUpload: '<?= $_app->get_url('upload_photo') ?>',
 			clipboardUploadUrl: '<?= $_app->get_url('paste_photo') ?>',
+			fileUpload: '<?= $_app->get_url('upload_file') ?>',
 			autoresize: false
 		});
 		$( "#dialog-form").dialog('open');

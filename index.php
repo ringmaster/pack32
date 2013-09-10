@@ -75,6 +75,10 @@ $app->middleware('menu', function(Response $response, Pack32 $app) {
 		[
 			'href' => '/calendar',
 			'title' => 'Calendar',
+		],
+		[
+			'href' => '/documents',
+			'title' => 'Documents',
 		]
 	];
 	$response['submenu'] = [];
@@ -336,6 +340,13 @@ $app->route('event', '/events/:slug', function(Request $request, Response $respo
 	return 'not found';
 });
 
+$app->route('documents', '/documents', function(Request $request, Response $response, Pack32 $app) {
+	$article = $app->db()->row('SELECT * FROM content WHERE slug = "documents"');
+	$response['article'] = $article;
+	$response['title'] = $article['title'] . ' - ' . ORG_NAME;
+	return $response->render('documents.php');
+});
+
 $app->route('delete', '/admin/delete/:id', function(Request $request, Response $response, Pack32 $app) {
 	$app->require_editing();
 	$app->db()->query('DELETE FROM content WHERE id = :id', ['id' => $request['id']]);
@@ -425,10 +436,9 @@ $app->route('add_new_post', '/admin/new', function(Request $request, Response $r
 	return 'ok';
 })->post();
 
-$app->route('paste_photo', '/admin/photo', function(Request $request, Response $response, Pack32 $app) {
+$app->route('paste_photo', '/admin/paste', function(Request $request, Response $response, Pack32 $app) {
 	$dir = __DIR__ . '/data/';
 
-	$contentType = $_POST['contentType'];
 	$data = base64_decode($_POST['data']);
 
 	$filename = md5(date('YmdHis')) . '.png';
@@ -439,7 +449,7 @@ $app->route('paste_photo', '/admin/photo', function(Request $request, Response $
 	echo json_encode(array('filelink' => '/data/' .$filename));
 });
 
-$app->route('upload_photo', '/admin/photo', function(Request $request, Response $response, Pack32 $app) {
+$app->route('upload_photo', '/admin/upload/photo', function(Request $request, Response $response, Pack32 $app) {
 	$app->require_editing();
 
 	// files storage folder
@@ -463,11 +473,37 @@ $app->route('upload_photo', '/admin/photo', function(Request $request, Response 
 
 		// displaying file
 		$array = array(
-			'filelink' => '/data/' . $file
+			'filelink' => '/data/' . basename($file)
 		);
 
-		echo stripslashes(json_encode($array));
+		echo json_encode($array);
 	}
+});
+
+$app->route('upload_file', '/admin/upload/file', function(Request $request, Response $response, Pack32 $app) {
+	$app->require_editing();
+
+	// files storage folder
+	$dir = __DIR__ . '/data/';
+
+	// setting file's mysterious name
+	list($name, $ext) = preg_split('#\.(?=[^\.]+$)#', $_FILES['file']['name']);
+	$try = '';
+	do {
+		$file = $dir . $name . $try . '.' . $ext;
+		$try = empty($try) ? 1 : intval($try) + 1;
+	} while(file_exists($file));
+
+	// copying
+	move_uploaded_file($_FILES['file']['tmp_name'], $file);
+
+	// displaying file
+	$array = [
+		'filelink' => '/data/' . basename($file),
+		'filename' => $name . '.' . $ext,
+	];
+
+	echo json_encode($array);
 });
 
 $app->route('profile', '/profile', function(Request $request, Response $response, Pack32 $app){
