@@ -315,7 +315,8 @@ $app->route('add_new', '/admin/new', function(Request $request, Response $respon
 		'groups' => $user_groups ? $user_groups : [],
 	];
 	$response['action'] = $app->get_url('add_new_post');
-	$response['groups'] = $app->db()->results('SELECT * FROM groups ORDER BY is_global = 0, name');
+	$response['groups'] = $app->db()->results('SELECT * FROM groups WHERE is_global = 0 ORDER BY name');
+	$response['global_groups'] = $app->db()->results('SELECT * FROM groups WHERE is_global <> 0 ORDER BY name');
 	return $response->render('new.php');
 })->get();
 
