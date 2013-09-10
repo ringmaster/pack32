@@ -65,7 +65,23 @@
 				ev.preventDefault();
 			}
 		});
+		<?php endif; ?>
 
+		<?php if(!$_app->profile_complete()): ?>
+		Messenger().post({
+			message: "You have not completed your profile.",
+			type: 'error',
+			showCloseButton: true,
+			actions: {
+				profile: {
+					label: 'Edit Your Profile',
+					action: function(){
+						location.href="/profile";
+						return true;
+					}
+				}
+			}
+		});
 		<?php endif; ?>
 
 		navigator.id.watch({

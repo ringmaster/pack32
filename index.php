@@ -30,6 +30,15 @@ class Pack32 extends App {
 	public function can_edit() {
 		return $this->response()['user']['admin_level'] > 0;
 	}
+
+	public function profile_complete() {
+		if($this->loggedin()) {
+			return $this->db()->val('SELECT count(*) FROM usergroup WHERE user_id = :id', ['id' => $this->response()['user']['id']]) > 0;
+		}
+		else {
+			return true;
+		}
+	}
 }
 
 $app = new Pack32();
