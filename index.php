@@ -8,6 +8,8 @@ include 'microsite.phar';
 
 session_start();
 
+define('ORG_NAME', 'Cub Scout Pack 32 - Pickering Valley');
+
 class Pack32 extends App {
 	/**
 	 * @return \Microsite\DB\PDO\DB
@@ -106,7 +108,7 @@ $app->middleware('menu', function(Response $response, Pack32 $app) {
 
 
 $app->route('home', '/', function (Response $response, Pack32 $app) {
-	$response['title'] = 'Cub Scout Pack 32 - Pickering Valley - Events, News, Calendar, &amp; Communication Center';
+	$response['title'] = ORG_NAME . ' - Events, News, Calendar, &amp; Communication Center';
 	$response['articles'] = $app->db()->results('
 		SELECT *, content.id as id
 		FROM content
@@ -161,7 +163,7 @@ $app->route('home', '/', function (Response $response, Pack32 $app) {
 });
 
 $calendar = function(Request $request, Response $response, Pack32 $app){
-	$response['title'] = 'Calendar - Cub Scout Pack 32 - Pickering Valley';
+	$response['title'] = 'Calendar - ' . ORG_NAME . ' - Pickering Valley';
 
 	date_default_timezone_set('UTC');
 
@@ -320,7 +322,7 @@ $app->route('event', '/events/:slug', function(Request $request, Response $respo
 	if($article) {
 		$response['article'] = $article;
 		$response['groups'] = $app->db()->results('SELECT * FROM eventgroup INNER JOIN groups ON group_id = groups.id WHERE event_id = :event_id', ['event_id' => $article->id]);
-		$response['title'] = $article['title'] . ' - Cub Scout Pack 32';
+		$response['title'] = $article['title'] . ' - ' . ORG_NAME;
 		return $response->render('event.php');
 	}
 	header('location: /');
@@ -463,7 +465,7 @@ $app->route('upload_photo', '/admin/photo', function(Request $request, Response 
 
 $app->route('profile', '/profile', function(Request $request, Response $response, Pack32 $app){
 	$app->require_login();
-	$response['title'] = 'Your Profile - Cub Scout Pack 32';
+	$response['title'] = 'Your Profile - ' . ORG_NAME;
 	$response['groups'] = $app->db()->results('SELECT * FROM groups WHERE is_global = 0 ORDER BY name');
 	$response['subscribed'] = $app->db()->results('SELECT groups.id, groups.name as group_name, usergroup.id as ug_id, usergroup.name FROM groups INNER JOIN usergroup ON groups.id = usergroup.group_id WHERE groups.is_global = 0 ORDER BY groups.name');
 	return $response->render('profile.php');

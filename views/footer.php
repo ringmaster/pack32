@@ -1,6 +1,8 @@
 <footer id="footer">
 	<a href="http://beascout.org">Be a Scout!</a><br>
 	<a href="http://www.scouting.org/">Boy Scouts of America</a><br>
+	<a href="http://www.cccbsa.org/">Chester County Council</a><br>
+	<a href="http://www.cccbsa.org/CubScouts/Pack/32">CCC's Pack 32 Page</a><br>
 </footer>
 
 <div id="dialog-form"></div>
