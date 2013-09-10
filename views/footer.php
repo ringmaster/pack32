@@ -9,7 +9,7 @@
 <script src="/js/select2/select2.min.js"></script>
 
 <script>
-	<?php if($loggedin): ?>
+	<?php if($_app->can_edit()): ?>
 	function openModal() {
 		$('#new_group').select2();
 		$('#new_content').redactor({
@@ -53,7 +53,7 @@
 
 
 
-		<?php if($loggedin): ?>
+		<?php if($_app->can_edit()): ?>
 		$('.delete').on('click', function(ev){
 			var href = $(this).attr('href');
 			if(!confirm('Are you sure you want to delete this?')) {

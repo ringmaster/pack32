@@ -4,7 +4,7 @@
 	<section class="main">
 	<?php foreach ($articles as $article): ?>
 		<article class="post" data-article-id="<?= $article['id'] ?>">
-			<?php if ($loggedin): ?>
+			<?php if ($_app->can_edit()): ?>
 				<div class="toolkit">
 					<a class="edit modaldlg" href="<?= $_app->get_url('edit', $article) ?>#editor"><i class="icon-edit" title="edit article"></i></a>
 					<a class="delete" href="<?= $_app->get_url('delete', $article) ?>"><i class="icon-trash" title="delete article"></i></a>

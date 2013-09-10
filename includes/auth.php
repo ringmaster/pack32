@@ -15,7 +15,7 @@ $app->middleware('auth', function(Response $response, Pack32 $app) {
 	}
 });
 
-$app->route('login', '/auth/login', function (App $app) {
+$app->route('login', '/auth/login', function (Pack32 $app) {
 	$assertion = $_POST['assertion'];
 	$audience = $_SERVER['HTTP_HOST'] . ':' . $_SERVER['SERVER_PORT'];
 
@@ -26,9 +26,9 @@ $app->route('login', '/auth/login', function (App $app) {
 	$result = json_decode($result);
 
 	if($result->status == 'okay') {
-
 		$row = $app->db()->row('SELECT * FROM users WHERE email = :email', ['email'=>$result->email]);
 		if($row) {
+			$app->db()->query('UPDATE users SET last_on = :now WHERE email = :email', ['email'=>$result->email, 'now' => time()]);
 			$_SESSION['user'] = $row;
 		}
 		else {

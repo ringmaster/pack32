@@ -39,7 +39,7 @@ CREATE TABLE `users` (
   `auth_token` varchar(50),
   `last_on` int(11) UNSIGNED DEFAULT null,
   `primary_group_id` int(11) UNSIGNED DEFAULT null,
-  `is_admin` int(11) UNSIGNED DEFAULT '0',
+  `admin_level` int(11) UNSIGNED DEFAULT '0',
   PRIMARY KEY(`id`),
   INDEX `idx_mail`(`username`, `email`, `auth_token`)
 )

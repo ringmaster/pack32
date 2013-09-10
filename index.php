@@ -26,6 +26,10 @@ class Pack32 extends App {
 	public function loggedin() {
 		return $this->response()['loggedin'];
 	}
+
+	public function can_edit() {
+		return $this->response()['user']['admin_level'] > 0;
+	}
 }
 
 $app = new Pack32();
@@ -54,11 +58,13 @@ $app->middleware('menu', function(Response $response, Pack32 $app) {
 			'title' => 'Log Out',
 			'class' => 'login',
 		];
-		$response['menu'][] = [
-			'href' => '/admin/new#editor',
-			'title' => 'Add Content',
-			'class' => 'login modaldlg',
-		];
+		if($app->can_edit()) {
+			$response['menu'][] = [
+				'href' => '/admin/new#editor',
+				'title' => 'Add Content',
+				'class' => 'login modaldlg',
+			];
+		}
 		$response['menu'][] = [
 			'href' => '/profile',
 			'title' => 'Your Profile',
