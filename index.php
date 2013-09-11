@@ -195,6 +195,17 @@ $calendar = function(Request $request, Response $response, Pack32 $app){
 		$end_date->add(\DateInterval::createFromDateString('+1 week'));
 	}
 
+	$groups_to_get = [];
+	if($app->loggedin()) {
+		$groups_to_get = $app->db()->col('SELECT groups.id FROM groups LEFT JOIN usergroup ON groups.id = usergroup.group_id WHERE groups.is_global = 1 OR usergroup.user_id = :user_id', ['user_id' => $response['user']['id']]);
+	}
+	if(isset($_GET['groups'])) {
+		$groups_to_get = array_filter(array_map('intval', explode(',', $_GET['groups'])));
+	}
+	if(isset($_POST['groups'])) {
+		$groups_to_get = array_filter(array_map('intval', $_POST['groups']));
+	}
+
 	if(isset($_GET['all'])) {
 		$sql = 'SELECT *, content.id as id
 		FROM content
@@ -208,10 +219,9 @@ $calendar = function(Request $request, Response $response, Pack32 $app){
 		GROUP BY content.id
 		ORDER BY content.posted_on';
 	}
-	elseif($app->loggedin()) {
-		$usergroups = $app->db()->col('SELECT group_id FROM usergroup WHERE user_id = :user_id', ['user_id' => $response['user']['id']]);
-		if($usergroups) {
-			$usergroups = implode(',', $usergroups);
+	else {
+		if($groups_to_get) {
+			$usergroups = implode(',', $groups_to_get);
 		}
 		else {
 			$usergroups = '0';
@@ -223,25 +233,11 @@ $calendar = function(Request $request, Response $response, Pack32 $app){
 		INNER JOIN
 			groups ON groups.id = eventgroup.group_id
 		WHERE
-			(groups.is_global = 1 OR groups.id IN ({$usergroups}))
+			groups.id IN ({$usergroups})
 			AND content_type = 'event'
 			AND event_on BETWEEN :start_date AND :end_date
 		GROUP BY content.id
 		ORDER BY content.posted_on";
-	}
-	else {
-		$sql = 'SELECT *, content.id as id
-		FROM content
-		INNER JOIN
-		  eventgroup ON eventgroup.event_id = content.id
-		INNER JOIN
-			groups ON groups.id = eventgroup.group_id
-		WHERE
-			groups.is_global = 1
-			AND content_type = "event"
-			AND event_on BETWEEN :start_date AND :end_date
-		GROUP BY content.id
-		ORDER BY content.posted_on';
 	}
 
 	$response['events'] = $app->db()->results(
@@ -255,9 +251,14 @@ $calendar = function(Request $request, Response $response, Pack32 $app){
 	foreach($response['events'] as &$event) {
 		$event['groups'] = $app->db()->results('SELECT * FROM eventgroup INNER JOIN groups ON group_id = groups.id WHERE event_id = :event_id', ['event_id' => $event->id]);
 	}
+	$response['groups'] = $app->db()->results('SELECT * FROM groups ORDER BY name ASC');
+	foreach($response['groups'] as &$group) {
+		$group['selected'] = in_array($group['id'], $groups_to_get) ? 'selected' : '';
+	}
 	$response['start_date'] = $start_date;
 	$response['end_date'] = $end_date;
 	$response['sel_date'] = $sel_date;
+	$response['groups_to_get'] = $groups_to_get;
 	return $response->render('calendar.php');
 };
 
