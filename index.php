@@ -205,6 +205,9 @@ $calendar = function(Request $request, Response $response, Pack32 $app){
 	if(isset($_POST['groups'])) {
 		$groups_to_get = array_filter(array_map('intval', $_POST['groups']));
 	}
+	if(count($groups_to_get) == 0 && !isset($_GET['groups']) && !isset($_POST['groups'])) {
+		$groups_to_get = $app->db()->col('SELECT groups.id FROM groups WHERE groups.is_global = 1');
+	}
 
 	if(isset($_GET['all'])) {
 		$sql = 'SELECT *, content.id as id
