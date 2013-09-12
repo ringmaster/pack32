@@ -151,7 +151,8 @@ $app->route('home', '/', function (Response $response, Pack32 $app) {
 			(groups.is_global = 1 OR groups.id IN ({$usergroups}))
 			AND content_type = 'event'
 			AND event_on > :now
-		ORDER BY content.posted_on";
+		ORDER BY content.posted_on
+		LIMIT 8";
 	}
 	else {
 		$sql = '
@@ -166,7 +167,7 @@ $app->route('home', '/', function (Response $response, Pack32 $app) {
 				AND content_type = "event"
 				AND event_on > :now
 			ORDER BY content.posted_on ASC
-			LIMIT 20;
+			LIMIT 8;
 		';
 	}
 	$response['upcoming'] = $app->db()->results($sql, ['now' => time()]);
