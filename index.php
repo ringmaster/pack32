@@ -264,6 +264,20 @@ $fetch_events = function(Response $response, Request $request, Pack32 $app) {
 		]
 	);
 	foreach($response['events'] as &$event) {
+		if($event['event_on'] == $event['event_end']) {
+			if(date('Hi', $event['event_on']) == '0000') {
+				$event['event_time'] = '';
+			}
+			else {
+				$event['event_time'] = date('g:i a', $event['event_on']) . ' - ';
+			}
+		}
+		elseif($event['event_end'] == 0) {
+			$event['event_time'] = date('g:i a', $event['event_on']) . ' - ';
+		}
+		else {
+			$event['event_time'] = date('g:i a', $event['event_on']) . ' - ' . date('g:i a', $event['event_end']) . ' - ';
+		}
 		$event['groups'] = $app->db()->results('SELECT * FROM eventgroup INNER JOIN groups ON group_id = groups.id WHERE event_id = :event_id', ['event_id' => $event->id]);
 	}
 	$response['start_date'] = $start_date;
@@ -382,8 +396,8 @@ $app->route('edit', '/admin/article/:id', function(Request $request, Response $r
 $app->route('edit_post', '/admin/article/:id', function(Request $request, Response $response, Pack32 $app){
 	$app->require_editing();
 	$id = $request['id'];
-	$event_on = strtotime($_POST['start_date'] . ' ' . $_POST['start_time']);
-	$event_end = strtotime($_POST['end_date'] . ' ' . $_POST['end_time']);
+	$event_on = trim($_POST['start_date'] . ' ' . $_POST['start_time']) == '' ? 0 : strtotime($_POST['start_date'] . ' ' . $_POST['start_time']);
+	$event_end = trim($_POST['end_date'] . ' ' . $_POST['end_time']) == '' ? $event_on : strtotime($_POST['end_date'] . ' ' . $_POST['end_time']);
 	$due_on = isset($_POST['due_on']) ? strtotime($_POST['due_on']) : 0;
 
 	$record = [
@@ -499,8 +513,9 @@ $app->route('add_new', '/admin/new', function(Request $request, Response $respon
 
 function add_content(Request $request, Response $response, Pack32 $app) {
 	$slug = trim(strtolower(preg_replace('#[^a-z0-9_]+#i', '-', $_POST['title'])), '-');
-	$event_on = strtotime($_POST['event_on']);
-	$due_on = strtotime($_POST['due_on']);
+	$event_on = trim($_POST['start_date'] . ' ' . $_POST['start_time']) == '' ? 0 : strtotime($_POST['start_date'] . ' ' . $_POST['start_time']);
+	$event_end = trim($_POST['end_date'] . ' ' . $_POST['end_time']) == '' ? $event_on : strtotime($_POST['end_date'] . ' ' . $_POST['end_time']);
+	$due_on = isset($_POST['due_on']) ? strtotime($_POST['due_on']) : 0;
 
 	// Get a clean slug
 	$exists = $app->db()->val('SELECT id FROM content WHERE slug = :slug', ['slug' => $slug]);
@@ -531,13 +546,15 @@ function add_content(Request $request, Response $response, Pack32 $app) {
 		'content_type' => $_POST['content_type'],
 		'due_on' => $due_on,
 		'event_on' => $event_on,
+		'event_end' => $event_end,
+		'status' => $_POST['status'],
 		'has_rsvp' => 0,
 	];
 	$app->db()->query('
 		INSERT INTO content
-		(slug, title, content, user_id, posted_on, content_type, due_on, event_on, has_rsvp)
+		(slug, title, content, user_id, posted_on, content_type, due_on, event_on, event_end, status, has_rsvp)
 		VALUES
-		(:slug, :title, :content, :user_id, :posted_on, :content_type, :due_on, :event_on, :has_rsvp)
+		(:slug, :title, :content, :user_id, :posted_on, :content_type, :due_on, :event_on, :event_end, :status, :has_rsvp)
 	',
 		$record);
 	$record['id'] = $app->db()->lastInsertId();
@@ -558,7 +575,7 @@ function add_content(Request $request, Response $response, Pack32 $app) {
 $app->route('add_new_post', '/admin/new', function(Request $request, Response $response, Pack32 $app) {
 	$app->require_editing();
 	$record = add_content($request, $response, $app);
-	header('location: ' . $app->get_url('add_new'));
+	header('location: ' . $_SERVER['HTTP_REFERER']);
 	$app->add_message('Added content.', 'success');
 	return 'ok';
 })->post();

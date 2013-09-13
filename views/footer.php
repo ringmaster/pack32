@@ -60,6 +60,11 @@
 			$(this).closest('.toggle_menu').toggleClass('active');
 		});
 
+		$('#calendar').on('mousemove', '.event', function(){
+			if($(this).offset().left + $(this).width() > $(window).width()) {
+				$(this).css('right', 0);
+			}
+		});
 
 
 		<?php if($_app->can_edit()): ?>
