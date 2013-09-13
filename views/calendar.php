@@ -41,7 +41,7 @@
 			$past = $current_date < new DateTime('-1 day');
 			$empty = 'empty';
 			foreach($events as $event) {
-				if($event['event_on'] > $current_date->getTimestamp() && $event['event_on'] < $current_date->getTimestamp() + 86400) {
+				if($event['event_on'] >= $current_date->getTimestamp() && $event['event_on'] < $current_date->getTimestamp() + 86400) {
 					$empty = '';
 				}
 			}
@@ -51,7 +51,7 @@
 				<ul>
 				<?php
 				foreach($events as $event) :
-					if($event['event_on'] > $current_date->getTimestamp() && $event['event_on'] < $current_date->getTimestamp() + 86400):
+					if($event['event_on'] >= $current_date->getTimestamp() && $event['event_on'] < $current_date->getTimestamp() + 86400):
 				?>
 						<li><div class="event <?= $event['is_global'] ? 'global' : 'user' ?>">
 								<?php foreach($event['groups'] as $group): ?>
