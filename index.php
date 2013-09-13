@@ -55,6 +55,13 @@ class Pack32 extends App {
 		}
 		$_SESSION['messages'][] = compact('message', 'type');
 	}
+
+	public function selected($match, $value) {
+		if($match == $value) {
+			return 'selected';
+		}
+		return '';
+	}
 }
 
 $app = new Pack32();
@@ -174,16 +181,14 @@ $app->route('home', '/', function (Response $response, Pack32 $app) {
 	return $response->render('home.php');
 });
 
-$calendar = function(Request $request, Response $response, Pack32 $app){
-	$response['title'] = 'Calendar - ' . ORG_NAME . ' - Pickering Valley';
-
-	date_default_timezone_set('UTC');
+$fetch_events = function(Response $response, Request $request, Pack32 $app) {
+//	date_default_timezone_set('UTC');
 
 	if(isset($request['year']) && isset($request['month'])) {
 		$sel_date = new \DateTime(intval($request['year']) . '-' . intval($request['month']) . '-01' );
 	}
 	else {
-		$sel_date = new \DateTime(date('Y-m-1'));
+		$sel_date = new \DateTime(gmdate('Y-m-1'));
 	}
 
 	$first_sunday = strtotime('first sunday of this month', $sel_date->getTimestamp());
@@ -194,6 +199,11 @@ $calendar = function(Request $request, Response $response, Pack32 $app){
 	$end_date = new \DateTime('@' . strtotime('last saturday of this month', $sel_date->getTimestamp()));
 	if(intval($end_date->format('j')) != intval($end_date->format('t'))) {
 		$end_date->add(\DateInterval::createFromDateString('+1 week'));
+	}
+
+	if(isset($request['all'])) {
+		$start_date = new \DateTime('today -1 year');
+		$end_date = new \DateTime('today +1 year');
 	}
 
 	$groups_to_get = [];
@@ -207,7 +217,8 @@ $calendar = function(Request $request, Response $response, Pack32 $app){
 		$groups_to_get = array_filter(array_map('intval', $_POST['groups']));
 	}
 	if(count($groups_to_get) == 0 && !isset($_GET['groups']) && !isset($_POST['groups'])) {
-		$groups_to_get = $app->db()->col('SELECT groups.id FROM groups WHERE groups.is_global = 1');
+		$groups_to_get = [1];
+		//$groups_to_get = $app->db()->col('SELECT groups.id FROM groups WHERE groups.is_global = 1');
 	}
 
 	if(isset($_GET['all'])) {
@@ -244,6 +255,7 @@ $calendar = function(Request $request, Response $response, Pack32 $app){
 		ORDER BY content.posted_on";
 	}
 
+	$response['groups_to_get'] = $groups_to_get;
 	$response['events'] = $app->db()->results(
 		$sql,
 		[
@@ -251,23 +263,98 @@ $calendar = function(Request $request, Response $response, Pack32 $app){
 			'end_date' => $end_date->getTimestamp(),
 		]
 	);
-
 	foreach($response['events'] as &$event) {
 		$event['groups'] = $app->db()->results('SELECT * FROM eventgroup INNER JOIN groups ON group_id = groups.id WHERE event_id = :event_id', ['event_id' => $event->id]);
-	}
-	$response['groups'] = $app->db()->results('SELECT * FROM groups ORDER BY name ASC');
-	foreach($response['groups'] as &$group) {
-		$group['selected'] = in_array($group['id'], $groups_to_get) ? 'selected' : '';
 	}
 	$response['start_date'] = $start_date;
 	$response['end_date'] = $end_date;
 	$response['sel_date'] = $sel_date;
-	$response['groups_to_get'] = $groups_to_get;
+};
+
+$calendar = function(Request $request, Response $response, Pack32 $app){
+	$response['title'] = 'Calendar - ' . ORG_NAME . ' - Pickering Valley';
+
+	$response['groups'] = $app->db()->results('SELECT * FROM groups ORDER BY name ASC');
+	foreach($response['groups'] as &$group) {
+		$group['selected'] = in_array($group['id'], $response['groups_to_get']) ? 'selected' : '';
+	}
 	return $response->render('calendar.php');
 };
 
-$app->route('calendar', '/calendar', $calendar);
-$app->route('calendar_date', '/calendar/:month/:year', $calendar);
+$app->route('calendar', '/calendar', $fetch_events, $calendar);
+$app->route('calendar_date', '/calendar/:month/:year', $fetch_events, $calendar);
+
+$ical = function(Request $request, Response $response, Pack32 $app) {
+
+	$host = $_SERVER['HTTP_HOST'];
+	$output = <<< VCAL_HEADER
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//hacksw/handcal//NONSGML v1.0//EN
+BEGIN:VTIMEZONE
+TZID:Eastern Standard Time
+BEGIN:STANDARD
+DTSTART:16011104T020000
+RRULE:FREQ=YEARLY;BYDAY=1SU;BYMONTH=11
+TZOFFSETFROM:-0400
+TZOFFSETTO:-0500
+END:STANDARD
+BEGIN:DAYLIGHT
+DTSTART:16010311T020000
+RRULE:FREQ=YEARLY;BYDAY=2SU;BYMONTH=3
+TZOFFSETFROM:-0500
+TZOFFSETTO:-0400
+END:DAYLIGHT
+END:VTIMEZONE
+
+VCAL_HEADER;
+	foreach($response['events'] as $event) {
+		$event_on = gmdate('Ymd\THis\Z', $event['event_on']);
+		$event_end = gmdate('Ymd\THis\Z', $event['event_end']);
+		$posted_on = gmdate('Ymd\THis\Z', $event['posted_on']);
+		$description = $event['content'];
+		$description = explode("\n", wordwrap($description));
+		$description = implode("\n ", $description);
+		$textdescription = strip_tags($description);
+		$statuses = [0=>'TENTATIVE', 1=>'TENTATIVE', 2=>'CONFIRMED', 3=>'CANCELLED'];
+		$status = $statuses[$event['status']];
+		$groups = [];
+		foreach($event['groups'] as $group) {
+			$groups[] = $group['name'];
+		}
+		$groups = implode(",", $groups);
+		$output .= <<< VCAL_EVENT
+BEGIN:VEVENT
+CLASS:PUBLIC
+CREATED:{$posted_on}
+UID:{$event['id']}@{$host}
+DTSTAMP:{$event_on}
+DTSTART:{$event_on}
+DTEND:{$event_end}
+STATUS:$status
+SUMMARY:{$event['title']}
+CATEGORIES:{$groups}
+DESCRIPTION:{$textdescription}
+X-ALT-DESC;FMTTYPE=text/html:{$description}
+END:VEVENT
+
+VCAL_EVENT;
+
+	}
+	$output .= <<< VCAL_END
+END:VCALENDAR
+
+VCAL_END;
+
+//	header('Content-type: text/calendar; charset=utf-8');
+//	header('Content-Disposition: inline; filename="calendar.ics"');
+
+	header('Content-type: text/plain; charset=utf-8');
+
+	echo $output;
+};
+
+$app->route('ical', '/ical', function(Request $request){$request['all'] = true;}, $fetch_events, $ical);
 
 $app->route('edit', '/admin/article/:id', function(Request $request, Response $response, Pack32 $app){
 	$app->require_editing();
@@ -280,6 +367,11 @@ $app->route('edit', '/admin/article/:id', function(Request $request, Response $r
 	}
 	$post['groups'] = $app->db()->col('SELECT group_id FROM eventgroup WHERE event_id = :id', compact('id'));
 
+	$response['start_date'] = $post['event_on'] ? date('Y-m-d', $post['event_on']) : '';
+	$response['start_time'] = $post['event_on'] ? date('H:i', $post['event_on']) : '';
+	$response['end_date'] = $post['event_end'] ? date('Y-m-d', $post['event_end']) : '';
+	$response['end_time'] = $post['event_end'] ? date('H:i', $post['event_end']) : '';
+
 	$response['global_groups'] = $app->db()->results('SELECT * FROM groups WHERE is_global = 1 ORDER BY name');
 	$response['groups'] = $app->db()->results('SELECT * FROM groups WHERE is_global <> 1 ORDER BY name');
 	$response['post'] = $post;
@@ -290,8 +382,9 @@ $app->route('edit', '/admin/article/:id', function(Request $request, Response $r
 $app->route('edit_post', '/admin/article/:id', function(Request $request, Response $response, Pack32 $app){
 	$app->require_editing();
 	$id = $request['id'];
-	$event_on = strtotime($_POST['event_on']);
-	$due_on = strtotime($_POST['due_on']);
+	$event_on = strtotime($_POST['start_date'] . ' ' . $_POST['start_time']);
+	$event_end = strtotime($_POST['end_date'] . ' ' . $_POST['end_time']);
+	$due_on = isset($_POST['due_on']) ? strtotime($_POST['due_on']) : 0;
 
 	$record = [
 		'id' => $id,
@@ -300,11 +393,13 @@ $app->route('edit_post', '/admin/article/:id', function(Request $request, Respon
 		'content_type' => $_POST['content_type'],
 		'due_on' => $due_on,
 		'event_on' => $event_on,
+		'event_end' => $event_end,
+		'status' => $_POST['status'],
 		'has_rsvp' => 0,
 	];
 	$app->db()->query('
 		UPDATE content
-		SET title = :title, content = :content, content_type = :content_type, due_on = :due_on, event_on = :event_on, has_rsvp = :has_rsvp
+		SET title = :title, content = :content, content_type = :content_type, due_on = :due_on, event_on = :event_on, event_end = :event_end, has_rsvp = :has_rsvp, status = :status
 		WHERE id = :id
 	',
 		$record);
@@ -339,6 +434,21 @@ $app->route('event', '/events/:slug', function(Request $request, Response $respo
 		$response['article'] = $article;
 		$response['groups'] = $app->db()->results('SELECT * FROM eventgroup INNER JOIN groups ON group_id = groups.id WHERE event_id = :event_id', ['event_id' => $article->id]);
 		$response['title'] = $article['title'] . ' - ' . ORG_NAME;
+
+		$start_date = date('D, M j, Y', $article['event_on']);
+		$end_date = date('D, M j, Y', $article['event_end']);
+		if($start_date == $end_date) {
+			$event_date = $start_date . ' ' . date('g:ip', $article['event_on']) . ' - ' . date('g:ip', $article['event_end']);
+		}
+		elseif($article['event_end'] == 0) {
+			$event_date = $start_date . ' ' . date('g:ip', $article['event_on']);
+		}
+		else {
+			$event_date = $start_date . ' ' . date('g:ip', $article['event_on']) . ' - ' . $end_date . ' ' . date('g:ip', $article['event_end']);
+		}
+
+		$response['event_date'] = $event_date;
+
 		return $response->render('event.php');
 	}
 	header('location: /');
@@ -368,7 +478,14 @@ $app->route('add_new', '/admin/new', function(Request $request, Response $respon
 		'content' => '',
 		'event_on' => isset($_GET['etime']) ? $_GET['etime'] : time(),
 		'groups' => $user_groups ? $user_groups : [],
+		'status' => 2,
 	];
+
+	$response['start_date'] = date('Y-m-d', isset($_GET['etime']) ? $_GET['etime'] : time());
+	$response['start_time'] = '18:30';
+	$response['end_date'] = date('Y-m-d', isset($_GET['etime']) ? $_GET['etime'] : time());
+	$response['end_time'] = '20:00';
+
 	$response['action'] = $app->get_url('add_new_post');
 	$response['groups'] = $app->db()->results('SELECT * FROM groups WHERE is_global = 0 ORDER BY name');
 	$response['global_groups'] = $app->db()->results('SELECT * FROM groups WHERE is_global <> 0 ORDER BY name');

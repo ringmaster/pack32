@@ -34,8 +34,7 @@
 		<?php
 		/** @var DateTime $current_date */
 		/** @var DateTime $end_date */
-		$current_date = $start_date;
-		$add_one_day = new \DateInterval('P1D');
+		$current_date = clone $start_date;
 		while($current_date <= $end_date):
 			$cur_month = $sel_date->format('m') == $current_date->format('m');
 			$today = $current_date ==  new DateTime('today') ? 'today' : '';
@@ -47,7 +46,8 @@
 				}
 			}
 		?>
-			<li data-date="<?= $current_date->getTimestamp() ?>" class="cal_cell <?= $cur_month ? 'current_month' : 'other_month'; ?> <?= $past ? 'past' : 'upcoming'; ?> <?= $empty ?> <?= $today ?>"><span class="date_weekday"><?= $current_date->format('D'); ?> </span><span class="date_number"><?= $current_date->format('j') ?></span>
+			<li data-date="<?= $current_date->getTimestamp() ?>" data-date-formatted="<?= $current_date->format('Y-m-d H:i:s') ?>" class="cal_cell <?= $cur_month ? 'current_month' : 'other_month'; ?> <?= $past ? 'past' : 'upcoming'; ?> <?= $empty ?> <?= $today ?>">
+				<span class="date_weekday"><?= $current_date->format('D'); ?> </span><span class="date_number"><?= $current_date->format('j') ?></span>
 				<ul>
 				<?php
 				foreach($events as $event) :
@@ -57,7 +57,11 @@
 								<?php foreach($event['groups'] as $group): ?>
 								<small class="group"><?= $group['name'] ?></small>
 								<?php endforeach; ?>
-								<a href="<?= $_app->get_url('event', ['slug' => $event['slug']]) ?>"><?= $event['title'] ?></a></div></li>
+								<a href="<?= $_app->get_url('event', ['slug' => $event['slug']]) ?>"><span class="event_time"><?= date('g:i a', $event['event_on']) ?> - </span><?= $event['title'] ?></a>
+								<?php if($_app->can_edit()): ?>
+								<a href="<?= $_app->get_url('edit', $event) ?>#editor" class="event_edit edit modaldlg">[edit]</a>
+								<?php endif; ?>
+							</div></li>
 				<?php
 					endif;
 				endforeach;
@@ -65,7 +69,7 @@
 				</ul>
 			</li>
 		<?php
-			$current_date->add($add_one_day);
+			$current_date->modify('+23 hours');
 		endwhile;
 		?>
 		</ol>

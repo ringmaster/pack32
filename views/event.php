@@ -9,7 +9,7 @@
 			</div>
 		<?php endif; ?>
 		<h1><?= $article['title'] ?></h1>
-		<h2><?= date('D, M j, Y', $article['event_on']) ?></h2>
+		<h2><?= $event_date ?></h2>
 
 		<div class="groups">
 			Participants:

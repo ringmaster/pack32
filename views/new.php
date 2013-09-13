@@ -43,9 +43,28 @@
 		<textarea id="new_content" name="content" class="input-1" style="min-height:200px;"><?= htmlspecialchars($post['content'], ENT_QUOTES | ENT_SUBSTITUTE, 'utf-8') ?></textarea>
 
 		<fieldsset>
-			<label for="new_event_on">Event On</label>
-			<input type="date" name="event_on" id="new_event_on" value="<?= date('Y-m-d', $post['event_on']) ?>">
+			<legend>Event Dates</legend>
+			<label for="new_start_date">Start Date</label>
+			<input type="date" name="start_date" id="new_start_date" value="<?= $start_date ?>">
+			<label for="new_start_time">Start Time</label>
+			<input type="time" name="start_time" id="new_start_time" value="<?= $start_time ?>">
+			<br>
+
+			<label for="new_end_date">End Date</label>
+			<input type="date" name="end_date" id="new_end_date" value="<?= $end_date ?>">
+			<label for="new_end_date">End Time</label>
+			<input type="time" name="end_time" id="new_end_time" value="<?= $end_time ?>">
 		</fieldsset>
+
+		<fieldset>
+			<legend>Extended Information</legend>
+			<label for="new_status">Status:</label>
+			<select id="new_status" name="status">
+				<option value="1" <?= $_app->selected(1, $post['status']) ?>>Tentative</option>
+				<option value="2" <?= $_app->selected(2, $post['status']) ?>>Confirmed</option>
+				<option value="3" <?= $_app->selected(3, $post['status']) ?>>Canceled</option>
+			</select>
+		</fieldset>
 
 	</form>
 

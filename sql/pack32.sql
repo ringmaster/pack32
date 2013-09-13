@@ -23,6 +23,8 @@ CREATE TABLE `content` (
   `content_type` varchar(50),
   `due_on` int(11) UNSIGNED DEFAULT null,
   `event_on` int(11) UNSIGNED DEFAULT null,
+  `event_end` int(11) UNSIGNED DEFAULT null,
+  `status` int(11) UNSIGNED DEFAULT 2,
   `has_rsvp` int(11) UNSIGNED NOT NULL DEFAULT '0',
   PRIMARY KEY(`id`),
   UNIQUE INDEX `idx_type_slug`(`content_type`, `slug`),
