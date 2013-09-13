@@ -438,7 +438,12 @@ $app->route('event', '/events/:slug', function(Request $request, Response $respo
 		$start_date = date('D, M j, Y', $article['event_on']);
 		$end_date = date('D, M j, Y', $article['event_end']);
 		if($start_date == $end_date) {
-			$event_date = $start_date . ' ' . date('g:ip', $article['event_on']) . ' - ' . date('g:ip', $article['event_end']);
+			if($article['event_on'] == $article['event_end']) {
+				$event_date = $start_date;
+			}
+			else {
+				$event_date = $start_date . ' ' . date('g:ip', $article['event_on']) . ' - ' . date('g:ip', $article['event_end']);
+			}
 		}
 		elseif($article['event_end'] == 0) {
 			$event_date = $start_date . ' ' . date('g:ip', $article['event_on']);
