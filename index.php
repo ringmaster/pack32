@@ -275,6 +275,9 @@ $fetch_events = function(Response $response, Request $request, Pack32 $app) {
 		elseif($event['event_end'] == 0) {
 			$event['event_time'] = date('g:i a', $event['event_on']) . ' - ';
 		}
+		elseif(date('Hi', $event['event_on']) == '0000' && date('Hi', $event['event_end']) == '0000') {
+			$event['event_time'] = '→' . date('M j', $event['event_end']) . ' - ';
+		}
 		else {
 			$event['event_time'] = date('g:i a', $event['event_on']) . ' - ' . date('g:i a', $event['event_end']) . ' - ';
 		}
