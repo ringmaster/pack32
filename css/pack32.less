@@ -460,6 +460,7 @@ em, i {
 			background: url(/img/pack_32.png);
 			background-size: contain;
 			background-repeat: no-repeat;
+			width: auto;
 		}
 	}
 
@@ -487,6 +488,12 @@ em, i {
 			}
 		}
 	}
+
+	#content img {
+		.box-sizing(border-box);
+		max-width: 100%;
+	}
+
 	#content {
 		.box-sizing(border-box);
 
