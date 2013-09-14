@@ -282,8 +282,11 @@ $fetch_events = function(Response $response, Request $request, Pack32 $app) {
 		elseif(date('Hi', $event['event_on']) == '0000' && date('Hi', $event['event_end']) == '0000') {
 			$event['event_time'] = date('M j', $event['event_on']) . '&rarr;' . date('M j', $event['event_end']) . ' - ';
 		}
-		else {
+		elseif(date('Ymd', $event['event_on']) == date('Ymd', $event['event_end'])) {
 			$event['event_time'] = date('g:i a', $event['event_on']) . ' - ' . date('g:i a', $event['event_end']) . ' - ';
+		}
+		else {
+			$event['event_time'] = date('M j, g:i a', $event['event_on']) . ' - ' . date('M j, g:i a', $event['event_end']) . ' - ';
 		}
 		$event['groups'] = $app->db()->results('SELECT * FROM eventgroup INNER JOIN groups ON group_id = groups.id WHERE event_id = :event_id', ['event_id' => $event->id]);
 	}
