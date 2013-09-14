@@ -311,10 +311,12 @@ $app->route('calendar_date', '/calendar/:month/:year', $fetch_events, $calendar)
 $ical = function(Request $request, Response $response, Pack32 $app) {
 
 	$host = $_SERVER['HTTP_HOST'];
+	$calname = ORG_NAME;
 	$output = <<< VCAL_HEADER
 BEGIN:VCALENDAR
 VERSION:2.0
 PRODID:-//hacksw/handcal//NONSGML v1.0//EN
+X-WR-CALNAME:{$calname}
 BEGIN:VTIMEZONE
 TZID:Eastern Standard Time
 BEGIN:STANDARD

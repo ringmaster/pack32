@@ -1,6 +1,7 @@
 <?php include 'header.php'; ?>
 
 <main id="content">
+	<p class="ical_subscribe"><a href="webcal://<?= $_SERVER['HTTP_HOST'] ?>/ical?groups=<?= implode(',', $groups_to_get) ?>" class="cal_link button"><i class="icon-calendar"></i> Subscribe</a></p>
 	<h1><?= $sel_date->format('F Y') ?></h1>
 
 	<?php
