@@ -342,6 +342,7 @@ VCAL_HEADER;
 		$textdescription = strip_tags($description);
 		$statuses = [0=>'TENTATIVE', 1=>'TENTATIVE', 2=>'CONFIRMED', 3=>'CANCELLED'];
 		$status = $statuses[$event['status']];
+		if($event['status'] == 3) continue; // Don't output these to iCal, they're confusing
 		$groups = [];
 		foreach($event['groups'] as $group) {
 			$groups[] = $group['name'];
