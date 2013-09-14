@@ -53,11 +53,12 @@
 				foreach($events as $event) :
 					if($event['event_on'] >= $current_date->getTimestamp() && $event['event_on'] < $current_date->getTimestamp() + 86400):
 				?>
-						<li><div class="event <?= $event['is_global'] ? 'global' : 'user' ?>">
+						<li><div class="event <?= $event['is_global'] ? 'global' : 'user' ?> <?= $event['status_name'] ?>">
+								<a class="event_link" href="<?= $_app->get_url('event', ['slug' => $event['slug']]) ?>">
 								<?php foreach($event['groups'] as $group): ?>
 								<small class="group"><?= $group['name'] ?></small>
 								<?php endforeach; ?>
-								<a href="<?= $_app->get_url('event', ['slug' => $event['slug']]) ?>"><span class="event_time"><?= $event['event_time'] ?></span><?= $event['title'] ?></a>
+								<span class="event_title"><span class="event_time"><?= $event['event_time'] ?></span><?= $event['title'] ?></a>
 								<?php if($_app->can_edit()): ?>
 								<a href="<?= $_app->get_url('edit', $event) ?>#editor" class="event_edit edit modaldlg">[edit]</a>
 								<?php endif; ?>

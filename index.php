@@ -158,6 +158,7 @@ $app->route('home', '/', function (Response $response, Pack32 $app) {
 			(groups.is_global = 1 OR groups.id IN ({$usergroups}))
 			AND content_type = 'event'
 			AND event_on > :now
+			AND status <> 3
 		ORDER BY content.posted_on
 		LIMIT 8";
 	}
@@ -173,6 +174,7 @@ $app->route('home', '/', function (Response $response, Pack32 $app) {
 				groups.is_global = 1
 				AND content_type = "event"
 				AND event_on > :now
+				AND status <> 3
 			ORDER BY content.posted_on ASC
 			LIMIT 8;
 		';
@@ -263,7 +265,9 @@ $fetch_events = function(Response $response, Request $request, Pack32 $app) {
 			'end_date' => $end_date->getTimestamp(),
 		]
 	);
+	$statuses = [0=>'tentative', 1=>'tentative', 2=>'confirmed', 3=>'canceled'];
 	foreach($response['events'] as &$event) {
+		$event['status_name'] = $statuses[$event['status']];
 		if($event['event_on'] == $event['event_end']) {
 			if(date('Hi', $event['event_on']) == '0000') {
 				$event['event_time'] = '';
@@ -448,9 +452,15 @@ $app->route('test', '/den/:den', function (Request $request) {
 $app->route('event', '/events/:slug', function(Request $request, Response $response, Pack32 $app) {
 	$article = $app->db()->row('SELECT * FROM content WHERE slug = :slug', ['slug' => $request['slug']]);
 	if($article) {
+		$response['title'] = $article['title'] . ' - ' . ORG_NAME;
+
+		switch($article['status']) {
+			case 1: $article['title'] .= ' <em style="font-size:smaller;">Tentative</em>'; break;
+			case 3: $article['title'] = '<s>' . $article['title'] . '</s> <em style="font-size:smaller;">Canceled</em>'; break;
+		}
+
 		$response['article'] = $article;
 		$response['groups'] = $app->db()->results('SELECT * FROM eventgroup INNER JOIN groups ON group_id = groups.id WHERE event_id = :event_id', ['event_id' => $article->id]);
-		$response['title'] = $article['title'] . ' - ' . ORG_NAME;
 
 		$start_date = date('D, M j, Y', $article['event_on']);
 		$end_date = date('D, M j, Y', $article['event_end']);

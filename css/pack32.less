@@ -291,6 +291,27 @@ em, i {
 					font-size: smaller;
 				}
 			}
+			&.canceled .event_title {
+				text-decoration: line-through;
+			}
+			&.canceled .event_title:before {
+				content: 'CANCELED: ';
+			}
+			&.tentative {
+				opacity: 0.3;
+			}
+			&.tentative:hover {
+				opacity: 1.0;
+			}
+			&.tentative .event_title:after {
+				content: ' (tentative)';
+			}
+		}
+		.event_link {
+			text-decoration: none;
+		}
+		.event_link .event_title {
+			text-decoration: underline;
 		}
 
 		.event_edit {
