@@ -62,6 +62,14 @@ class Pack32 extends App {
 		}
 		return '';
 	}
+
+	public function checked($match, $value) {
+		if($match == $value) {
+			return 'checked';
+		}
+		return '';
+	}
+
 }
 
 $app = new Pack32();
@@ -422,7 +430,7 @@ $app->route('edit_post', '/admin/article/:id', function(Request $request, Respon
 		'event_on' => $event_on,
 		'event_end' => $event_end,
 		'status' => $_POST['status'],
-		'has_rsvp' => 0,
+		'has_rsvp' => $_POST['has_rsvp'],
 	];
 	$app->db()->query('
 		UPDATE content
@@ -567,7 +575,7 @@ function add_content(Request $request, Response $response, Pack32 $app) {
 		'event_on' => $event_on,
 		'event_end' => $event_end,
 		'status' => $_POST['status'],
-		'has_rsvp' => 0,
+		'has_rsvp' => $_POST['has_rsvp'],
 	];
 	$app->db()->query('
 		INSERT INTO content

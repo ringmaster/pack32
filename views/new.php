@@ -64,6 +64,8 @@
 				<option value="2" <?= $_app->selected(2, $post['status']) ?>>Confirmed</option>
 				<option value="3" <?= $_app->selected(3, $post['status']) ?>>Canceled</option>
 			</select>
+			<label for="has_rsvp"><input id="has_rsvp" type="checkbox" name="has_rsvp" value="1" <?= $_app->checked(1, $post['has_rsvp']) ?>> Requires RSVP</label>
+
 		</fieldset>
 
 	</form>
