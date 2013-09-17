@@ -97,6 +97,33 @@
 			}
 		});
 		<?php endif; ?>
+		<?php if(isset($_SESSION['public_notice'])): ?>
+		Messenger().post({
+			message: "Are you at a public terminal?",
+			actions: {
+				Yes: {
+					label: 'Yes',
+					action: function() {
+						$.post(
+							'<?= $_app->get_url('public_notice') ?>',
+							{public: 'true'}
+						);
+						return msg.cancel();
+					}
+				},
+				No: {
+					label: 'No',
+					action: function() {
+						$.post(
+							'<?= $_app->get_url('public_notice') ?>',
+							{public: 'false'}
+						);
+						return msg.cancel();
+					}
+				}
+			}
+		});
+		<?php endif; ?>
 		<?php if(isset($_SESSION['messages'])): foreach($_SESSION['messages'] as $message): ?>
 		Messenger().post({
 			message: '<?= htmlspecialchars($message['message'], ENT_QUOTES | ENT_SUBSTITUTE, 'utf-8') ?>',
