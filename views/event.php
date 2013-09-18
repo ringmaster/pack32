@@ -47,7 +47,6 @@
 
 <script>
 	$(function(){
-		Dropzone.autoDiscover = false;
 		$('.dropzone')
 			.dropzone({
 				url: '<?= $_app->get_url('attach_photo', ['event_id' => $article['id']]) ?>',
