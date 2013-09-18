@@ -54,14 +54,16 @@
 				paramName: 'file',
 				clickable: true
 			});
-		Dropzone.forElement(".dropzone")
-			.on('selectedfiles', function(){
-				$('.dropzone .notice').hide();
-				$('.dropzone .dz-success').remove();
-			})
-			.on('complete', function(){
-				$('.attachments').load('# .attachments > *');
-			})
+		if($('.dropzone').length) {
+			Dropzone.forElement(".dropzone")
+				.on('selectedfiles', function(){
+					$('.dropzone .notice').hide();
+					$('.dropzone .dz-success').remove();
+				})
+				.on('complete', function(){
+					$('.attachments').load('# .attachments > *');
+				})
+		}
 	});
 </script>
 
