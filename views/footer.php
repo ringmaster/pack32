@@ -68,8 +68,16 @@
 				$(this).css('right', 0);
 			}
 		});
+		$('.attachments img').on('load', function(){
+			var w=0;
+			var $ul = $('.attachments ul');
+			$ul.children().each(function(){
+				w += $(this).outerWidth(true);
+			});
+			$ul.width(w);
+		});
 
-		$("img").unveil();
+		$('img').unveil();
 
 		<?php if($_app->can_edit()): ?>
 		$('.delete').on('click', function(ev){
