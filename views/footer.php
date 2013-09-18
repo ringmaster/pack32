@@ -11,6 +11,7 @@
 <script src="/js/redactor/redactor.min.js"></script>
 <script src="/js/select2/select2.min.js"></script>
 <script src="/js/dropzone/dropzone.js"></script>
+<script src="/js/unveil.js"></script>
 <script src="/js/unslider.min.js"></script>
 
 <script>
@@ -68,6 +69,7 @@
 			}
 		});
 
+		$("img").unveil();
 
 		<?php if($_app->can_edit()): ?>
 		$('.delete').on('click', function(ev){
