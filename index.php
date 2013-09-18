@@ -715,7 +715,7 @@ $app->route('attach_photo', '/admin/attach/:event_id', function(Request $request
 		)
 		{
 			$app->db()->query(
-				'INSERT INTO attachments (user_id, event_id, filename, remote_url, thumbnail_url, checksum) VALUES (:user_id, :event_id, :filename, :remote_url, :thumbnail_url, :checksum)',
+				'INSERT INTO attachments (user_id, event_id, filename, remote_url, thumbnail_url, checksum, added_on) VALUES (:user_id, :event_id, :filename, :remote_url, :thumbnail_url, :checksum, :added_on)',
 				[
 					'user_id' => $response['user']['id'],
 					'event_id' => $event_id,
@@ -723,6 +723,7 @@ $app->route('attach_photo', '/admin/attach/:event_id', function(Request $request
 					'remote_url' => 'files.cubpack32.com/' . $file,
 					'thumbnail_url' => 'files.cubpack32.com/' . $thumbnail_file,
 					'checksum' => $checksum,
+					'added_on' => time(),
 				]
 			);
 

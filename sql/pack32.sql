@@ -129,6 +129,7 @@ CREATE TABLE `attachments` (
   `remote_url` text NOT NULL,
   `thumbnail_url` text NOT NULL,
   `checksum` varchar(255) not null,
+  `added_on` int(11) DEFAULT 0,
   PRIMARY KEY(`id`),
   INDEX `idx_attachments`(`event_id`, `user_id`)
 )
