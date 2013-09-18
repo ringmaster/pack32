@@ -81,6 +81,7 @@ $app->template_dirs = [
 
 include 'includes/auth.php';
 include 'includes/s3.php';
+include 'includes/image.php';
 
 $app->middleware('menu', function(Response $response, Pack32 $app) {
 	$response['menu'] = [
@@ -663,21 +664,29 @@ $app->route('attach_photo', '/admin/attach/:event_id', function(Request $request
 
 	$_FILES['file']['type'] = strtolower($_FILES['file']['type']);
 
-	$allowed_mimes = ['image/png', 'image/jpg', 'image/gif', 'image/jpeg', 'image/pjpeg'];
+	$allowed_mimes = [
+		'image/png' => 'png',
+		'image/jpg' => 'jpg',
+		'image/gif' => 'gif',
+		'image/jpeg' => 'jpg',
+		'image/pjpeg' => 'jpg',
+	];
 
-	if(!in_array($_FILES['file']['type'], $allowed_mimes)) {
+	if(!in_array($_FILES['file']['type'], array_keys($allowed_mimes))) {
 		http_response_code(400);
 		return 'The uploaded file is not an allowed type.';
 	}
 
 	$file = 'attachment/' . $event_id . '/' . uniqid('', true) . '-' . $_FILES['file']['name'];
-
+	$thumbnail_file = 'attachment/' . $event_id . '/' . uniqid('', true) . '-thumb-' . $_FILES['file']['name'];
 
 	$checksum = md5_file($_FILES['file']['tmp_name']);
 	if($app->db()->val('SELECT id FROM attachments WHERE checksum = :checksum', compact('checksum'))) {
 		http_response_code(400);
 		return 'This file has already been uploaded.';
 	}
+
+	$thumbnail_image = image_resize(400, $_FILES['file']['tmp_name'], $allowed_mimes[$_FILES['file']['type']]);
 
 	// copying to S3
 	$s3 = new \S3('AKIAJ4YZBSZU2QJQ337A', '1POMKe8wAKio6RmskWGuAYMWfrtgTLqD1mrTmQsN');
@@ -693,19 +702,38 @@ $app->route('attach_photo', '/admin/attach/:event_id', function(Request $request
 		)
 	) {
 
-		$app->db()->query(
-			'INSERT INTO attachments (user_id, event_id, filename, remote_url, thumbnail_url, checksum) VALUES (:user_id, :event_id, :filename, :remote_url, :thumbnail_url, :checksum)',
-			[
-				'user_id' => $response['user']['id'],
-				'event_id' => $event_id,
-				'filename' => basename($_FILES['file']['tmp_name']),
-				'remote_url' => 'files.cubpack32.com/' . $file,
-				'thumbnail_url' => '',
-				'checksum' => $checksum,
-			]
-		);
+		if(
+			$s3->putObject(
+				$thumbnail_image,
+				'files.cubpack32.com',
+				$thumbnail_file,
+				\S3::ACL_AUTHENTICATED_READ,
+				[
+					'content-type' => $_FILES['file']['type']
+				]
+			)
+		)
+		{
+			$app->db()->query(
+				'INSERT INTO attachments (user_id, event_id, filename, remote_url, thumbnail_url, checksum) VALUES (:user_id, :event_id, :filename, :remote_url, :thumbnail_url, :checksum)',
+				[
+					'user_id' => $response['user']['id'],
+					'event_id' => $event_id,
+					'filename' => basename($_FILES['file']['tmp_name']),
+					'remote_url' => 'files.cubpack32.com/' . $file,
+					'thumbnail_url' => 'files.cubpack32.com/' . $thumbnail_file,
+					'checksum' => $checksum,
+				]
+			);
 
-		$result = 'success';
+			$result = 'success';
+
+		}
+		else {
+			http_response_code(400);
+			$result = 'There was an error transferring the thumbnail file to external storage.';
+		}
+
 	}
 	else {
 		http_response_code(400);
@@ -715,6 +743,18 @@ $app->route('attach_photo', '/admin/attach/:event_id', function(Request $request
 	unlink($_FILES['file']['tmp_name']);
 
 	return $result;
+});
+
+$app->route('get_thumbnail', '/thumbnail/:id', function(Request $request, Response $response, Pack32 $app) {
+	if($filerow = $app->db()->row('SELECT * FROM attachments WHERE id = :id', ['id' => $request['id']])) {
+		$remote_url = $filerow['thumbnail_url'];
+		list($bucket, $file) = explode('/', $remote_url, 2);
+		$s3 = new \S3('AKIAJ4YZBSZU2QJQ337A', '1POMKe8wAKio6RmskWGuAYMWfrtgTLqD1mrTmQsN');
+		$url = $s3->getAuthenticatedURL($bucket, $file, 600);
+		header('location:' . $url);
+		return ' ';
+	}
+	return ' ';
 });
 
 $app->route('get_file', '/file/:id', function(Request $request, Response $response, Pack32 $app) {
@@ -728,7 +768,6 @@ $app->route('get_file', '/file/:id', function(Request $request, Response $respon
 	}
 	return ' ';
 });
-
 
 $app->route('upload_file', '/admin/upload/file', function(Request $request, Response $response, Pack32 $app) {
 	$app->require_editing();

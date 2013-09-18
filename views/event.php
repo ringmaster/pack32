@@ -29,7 +29,7 @@
 			<div class="attachments">
 				<ul style="width:<?= (count($attachments) + 3) * 100 ?>%;">
 				<?php foreach($attachments as $photo): ?>
-					<li><img src="<?= $_app->get_url('get_file', $photo) ?>"></li>
+					<li><a href="<?= $_app->get_url('get_file', $photo) ?>"><img src="<?= $_app->get_url('get_thumbnail', $photo) ?>"></a></li>
 				<?php endforeach; ?>
 				</ul>
 			</div>
