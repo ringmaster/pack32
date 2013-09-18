@@ -13,7 +13,7 @@ $app->middleware('auth', function(Response $response, Pack32 $app) {
 			setcookie('auth_Token', md5(time()), 1, '/');
 		}
 	}
-	if(isset($_SESSION['user_email'])) {
+	elseif(isset($_SESSION['user_email'])) {
 		$response['currentuser'] = $_SESSION['user_email'];
 		$response['loggedin'] = true;
 		$response['user'] = $app->db()->row('SELECT * FROM users WHERE email = :email', ['email' => $_SESSION['user_email']]);

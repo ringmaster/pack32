@@ -21,8 +21,50 @@
 		<div class="content">
 			<?= $article['content'] ?>
 		</div>
+
+		<div class="responses">
+			<h2>Responses</h2>
+		<?php if($_app->loggedin()) : ?>
+
+			<div class="attachments">
+				<ul style="width:<?= (count($attachments) + 3) * 100 ?>%;">
+				<?php foreach($attachments as $photo): ?>
+					<li><img src="<?= $_app->get_url('get_file', $photo) ?>"></li>
+				<?php endforeach; ?>
+				</ul>
+			</div>
+
+			<div class="dropzone"><span class="notice">Drop images into this space from your computer to attach them to this event.</span></div>
+
+		<?php else: ?>
+			<p>Responses are available only to logged-in users.  Please log in via the button on the toolbar at the top of the page to view and add responses.</p>
+			<p>There are <?= count($attachments) ?> photos and <?= count($responses) ?> responses currently available to view on this event.</p>
+		<?php endif; ?>
+		</div>
+
 	</article>
 </main>
+
+<script>
+	Dropzone.autoDiscover = false;
+	$(function(){
+		$('.dropzone')
+			.dropzone({
+				url: '<?= $_app->get_url('attach_photo', ['event_id' => $article['id']]) ?>',
+				acceptedFiles: 'image/*,application/pdf,video/*',
+				paramName: 'file',
+				clickable: true
+			});
+		Dropzone.forElement(".dropzone")
+			.on('selectedfiles', function(){
+				$('.dropzone .notice').hide();
+				$('.dropzone .dz-success').remove();
+			})
+			.on('complete', function(){
+				$('.attachments').load('# .attachments > *');
+			})
+	});
+</script>
 
 <?php include 'footer.php'; ?>
 

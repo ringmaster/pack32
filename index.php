@@ -80,6 +80,7 @@ $app->template_dirs = [
 ];
 
 include 'includes/auth.php';
+include 'includes/s3.php';
 
 $app->middleware('menu', function(Response $response, Pack32 $app) {
 	$response['menu'] = [
@@ -495,6 +496,8 @@ $app->route('event', '/events/:slug', function(Request $request, Response $respo
 
 		$response['event_date'] = $event_date;
 
+		$response['attachments'] = $app->db()->results('SELECT * FROM attachments WHERE event_id = :event_id', ['event_id' => $article['id']]);
+
 		return $response->render('event.php');
 	}
 	header('location: /');
@@ -650,6 +653,81 @@ $app->route('upload_photo', '/admin/upload/photo', function(Request $request, Re
 		echo json_encode($array);
 	}
 });
+
+
+$app->route('attach_photo', '/admin/attach/:event_id', function(Request $request, Response $response, Pack32 $app) {
+	$app->require_login();
+
+	$event_id = $request['event_id'];
+
+	$_FILES['file']['type'] = strtolower($_FILES['file']['type']);
+
+	$allowed_mimes = ['image/png', 'image/jpg', 'image/gif', 'image/jpeg', 'image/pjpeg'];
+
+	if(!in_array($_FILES['file']['type'], $allowed_mimes)) {
+		http_response_code(400);
+		return 'The uploaded file is not an allowed type.';
+	}
+
+	$file = 'attachment/' . $event_id . '/' . uniqid('', true) . '-' . $_FILES['file']['name'];
+
+
+	$checksum = md5_file($_FILES['file']['tmp_name']);
+	if($app->db()->val('SELECT id FROM attachments WHERE checksum = :checksum', compact('checksum'))) {
+		http_response_code(400);
+		return 'This file has already been uploaded.';
+	}
+
+	// copying to S3
+	$s3 = new \S3('AKIAJ4YZBSZU2QJQ337A', '1POMKe8wAKio6RmskWGuAYMWfrtgTLqD1mrTmQsN');
+	if(
+		$s3->putObject(
+			\S3::inputFile($_FILES['file']['tmp_name'], false),
+			'files.cubpack32.com',
+			$file,
+			\S3::ACL_AUTHENTICATED_READ,
+			[
+				'content-type' => $_FILES['file']['type']
+			]
+		)
+	) {
+
+		$app->db()->query(
+			'INSERT INTO attachments (user_id, event_id, filename, remote_url, thumbnail_url, checksum) VALUES (:user_id, :event_id, :filename, :remote_url, :thumbnail_url, :checksum)',
+			[
+				'user_id' => $response['user']['id'],
+				'event_id' => $event_id,
+				'filename' => basename($_FILES['file']['tmp_name']),
+				'remote_url' => 'files.cubpack32.com/' . $file,
+				'thumbnail_url' => '',
+				'checksum' => $checksum,
+			]
+		);
+
+		$result = 'success';
+	}
+	else {
+		http_response_code(400);
+		$result = 'There was an error transferring the file to external storage.';
+	}
+
+	unlink($_FILES['file']['tmp_name']);
+
+	return $result;
+});
+
+$app->route('get_file', '/file/:id', function(Request $request, Response $response, Pack32 $app) {
+	if($filerow = $app->db()->row('SELECT * FROM attachments WHERE id = :id', ['id' => $request['id']])) {
+		$remote_url = $filerow['remote_url'];
+		list($bucket, $file) = explode('/', $remote_url, 2);
+		$s3 = new \S3('AKIAJ4YZBSZU2QJQ337A', '1POMKe8wAKio6RmskWGuAYMWfrtgTLqD1mrTmQsN');
+		$url = $s3->getAuthenticatedURL($bucket, $file, 600);
+		header('location:' . $url);
+		return ' ';
+	}
+	return ' ';
+});
+
 
 $app->route('upload_file', '/admin/upload/file', function(Request $request, Response $response, Pack32 $app) {
 	$app->require_editing();

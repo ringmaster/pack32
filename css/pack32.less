@@ -451,6 +451,41 @@ em, i {
 	border-bottom-left-radius: 0px;
 }
 
+.responses {
+	border-top: 1px solid rgba(0,0,0,0.3);
+	padding-top: 20px;
+	margin-top: 20px;
+	.dropzone {
+		min-height: 200px;
+	}
+	.dz-started .notice {
+		display: none;
+	}
+	.dropzone .dz-success .dz-success-mark span {
+		display: block;
+	}
+	.dropzone .dz-error .dz-error-mark span {
+		display: block;
+	}
+}
+
+.attachments {
+	position: relative;
+	overflow: auto;
+	height: 400px;
+	ul {
+		list-style: none;
+	}
+	li {
+		float: left;
+		img {
+			max-height: 90%;
+		}
+	}
+}
+
+
+
 @media (max-width: 980px) {
 	#header {
 		background-image: none;

@@ -121,4 +121,19 @@ CREATE TABLE `usergroup` (
   CHARACTER SET utf8
   COLLATE utf8_general_ci ;
 
+CREATE TABLE `attachments` (
+  `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `event_id` int(11) UNSIGNED DEFAULT null,
+  `user_id` int(11) UNSIGNED DEFAULT null,
+  `filename` varchar(255) NOT NULL,
+  `remote_url` text NOT NULL,
+  `thumbnail_url` text NOT NULL,
+  `checksum` varchar(255) not null,
+  PRIMARY KEY(`id`),
+  INDEX `idx_attachments`(`event_id`, `user_id`)
+)
+  ENGINE=MYISAM
+  CHARACTER SET utf8
+  COLLATE utf8_general_ci ;
+
 SET FOREIGN_KEY_CHECKS=1;
