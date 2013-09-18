@@ -69,8 +69,8 @@ $app->route('login', '/auth/login', function (Pack32 $app) {
 });
 
 $app->route('logout', '/auth/logout', function () {
+	setcookie('auth_token', 'zzzzzz', 1, '/');
 	if(isset($_SESSION['user_email'])) {
-		setcookie('auth_token', 'zzzzzz', 1, '/');
 		unset($_SESSION['user_email']);
 		return 'true';
 	}

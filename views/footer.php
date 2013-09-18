@@ -110,7 +110,7 @@
 							'<?= $_app->get_url('public_notice') ?>',
 							{public: 'true'}
 						);
-						return msg.cancel();
+						return this.cancel();
 					}
 				},
 				No: {
@@ -120,7 +120,7 @@
 							'<?= $_app->get_url('public_notice') ?>',
 							{public: 'false'}
 						);
-						return msg.cancel();
+						return this.cancel();
 					}
 				}
 			}
@@ -165,7 +165,22 @@
 				});
 			}
 		})
-	})
+	});
+
+	function doLogout() {
+		navigator.id.logout();
+		$.ajax({
+			type: 'POST',
+			url: '/auth/logout',
+			success: function(res, status, xhr) {
+				console.log(res);
+				if(res == 'true') {
+					window.location.reload();
+				}
+			},
+			error: function(xhr, status, err) { alert("Logout failure: " + err); }
+		});
+	}
 </script>
 </div>
 </body>

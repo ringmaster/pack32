@@ -34,7 +34,7 @@
 				</ul>
 			</div>
 
-			<div class="dropzone"><span class="notice">Drop images into this space from your computer to attach them to this event.</span></div>
+			<div class="dropzone"><span class="notice">Drop images into this space from your computer or <span style="text-decoration: underline">click here</span> to attach them to this event.</span></div>
 
 		<?php else: ?>
 			<p>Responses are available only to logged-in users.  Please log in via the button on the toolbar at the top of the page to view and add responses.</p>
@@ -46,8 +46,8 @@
 </main>
 
 <script>
-	Dropzone.autoDiscover = false;
 	$(function(){
+		Dropzone.autoDiscover = false;
 		$('.dropzone')
 			.dropzone({
 				url: '<?= $_app->get_url('attach_photo', ['event_id' => $article['id']]) ?>',
