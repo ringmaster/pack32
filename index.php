@@ -497,8 +497,8 @@ $app->route('event', '/events/:slug', function(Request $request, Response $respo
 
 		$response['event_date'] = $event_date;
 
-		$response['attachments'] = $app->db()->results('SELECT * FROM attachments WHERE event_id = :event_id', ['event_id' => $article['id']]);
-		$response['responses'] = $app->db()->results('SELECT * FROM responses WHERE content_id = :event_id', ['event_id' => $article['id']]);
+		$response['attachments'] = $app->db()->results('SELECT * FROM attachments WHERE event_id = :event_id ORDER BY added_on DESC, id DESC', ['event_id' => $article['id']]);
+		$response['responses'] = $app->db()->results('SELECT * FROM responses WHERE content_id = :event_id ORDER BY id DESC', ['event_id' => $article['id']]);
 
 		return $response->render('event.php');
 	}
