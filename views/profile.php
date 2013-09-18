@@ -14,7 +14,7 @@
 			<p>
 				Please create an association for each boy to his specific den/group.<br>
 				If you are personally associated to a den/committee, add your name as a member and associate yourself to that group.<br>
-				For each group member, please use that person's <em>full name</em>.<br>
+				For each group member, please use only that person's <em>first</em> name.<br>
 				To remove a member, clear the checkbox next to the row.<br>
 				To commit any changes, click the Update button.
 			</p>

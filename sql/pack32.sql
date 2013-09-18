@@ -114,6 +114,7 @@ CREATE TABLE `usergroup` (
   `user_id` int(11) UNSIGNED NOT NULL,
   `group_id` int(11) UNSIGNED NOT NULL,
   `name` varchar(255) NOT NULL,
+  `user_type` int(11) UNSIGNED NOT NULL DEFAULT 0,
   PRIMARY KEY(`id`),
   UNIQUE INDEX `idx_usergroup`(`user_id`, `group_id`, `name`)
 )

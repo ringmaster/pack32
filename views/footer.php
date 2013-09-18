@@ -3,7 +3,7 @@
 	<a href="http://www.scouting.org/">Boy Scouts of America</a><br>
 	<a href="http://www.cccbsa.org/">Chester County Council</a><br>
 	<a href="http://www.cccbsa.org/CubScouts/Pack/32">CCC's Pack 32 Page</a><br>
-	<span style="display:inline-block">Thanks for visiting <?= ORG_NAME ?></span>
+	<span style="display:inline-block">Thanks for visiting <?= $config['org_name'] ?></span>
 </footer>
 
 <div id="dialog-form"></div>

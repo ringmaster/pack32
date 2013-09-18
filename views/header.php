@@ -25,7 +25,7 @@
 <body>
 <div class="wrapper">
 	<header id="header">
-		<h1><a href="/"><?= ORG_NAME ?></a></h1>
+		<h1><a href="/"><?= $config['org_name'] ?></a></h1>
 	</header>
 </div>
 <nav id="nav">

@@ -8,7 +8,6 @@ include 'microsite.phar';
 
 session_start();
 
-define('ORG_NAME', 'Cub Scout Pack 32 - Pickering Valley');
 
 class Pack32 extends App {
 	/**
@@ -83,6 +82,9 @@ include 'includes/auth.php';
 include 'includes/s3.php';
 include 'includes/image.php';
 
+Config::load(__DIR__ . '/config.php');
+Config::middleware($app);
+
 $app->middleware('menu', function(Response $response, Pack32 $app) {
 	$response['menu'] = [
 		[
@@ -136,7 +138,7 @@ $app->middleware('menu', function(Response $response, Pack32 $app) {
 
 
 $app->route('home', '/', function (Response $response, Pack32 $app) {
-	$response['title'] = ORG_NAME . ' - Events, News, Calendar, &amp; Communication Center';
+	$response['title'] = Config::get('org_name') . ' - Events, News, Calendar, &amp; Communication Center';
 	$response['articles'] = $app->db()->results('
 		SELECT *, content.id as id
 		FROM content
@@ -306,7 +308,7 @@ $fetch_events = function(Response $response, Request $request, Pack32 $app) {
 };
 
 $calendar = function(Request $request, Response $response, Pack32 $app){
-	$response['title'] = 'Calendar - ' . ORG_NAME . ' - Pickering Valley';
+	$response['title'] = 'Calendar - ' . Config::get('org_name') . ' - Pickering Valley';
 
 	$response['groups'] = $app->db()->results('SELECT * FROM groups ORDER BY name ASC');
 	foreach($response['groups'] as &$group) {
@@ -321,7 +323,7 @@ $app->route('calendar_date', '/calendar/:month/:year', $fetch_events, $calendar)
 $ical = function(Request $request, Response $response, Pack32 $app) {
 
 	$host = $_SERVER['HTTP_HOST'];
-	$calname = ORG_NAME;
+	$calname = Config::get('org_name');
 	$output = <<< VCAL_HEADER
 BEGIN:VCALENDAR
 VERSION:2.0
@@ -457,7 +459,7 @@ $app->route('edit_post', '/admin/article/:id', function(Request $request, Respon
 })->post();
 
 $app->share('db', function() {
-	$db = new DB('mysql:host=localhost;dbname=pack32', 'root', '');
+	$db = new DB(Config::get('db_connection'), Config::get('db_username'), Config::get('db_password'));
 	return $db;
 });
 
@@ -468,7 +470,7 @@ $app->route('test', '/den/:den', function (Request $request) {
 $app->route('event', '/events/:slug', function(Request $request, Response $response, Pack32 $app) {
 	$article = $app->db()->row('SELECT * FROM content WHERE slug = :slug', ['slug' => $request['slug']]);
 	if($article) {
-		$response['title'] = $article['title'] . ' - ' . ORG_NAME;
+		$response['title'] = $article['title'] . ' - ' . Config::get('org_name');
 
 		switch($article['status']) {
 			case 1: $article['title'] .= ' <em style="font-size:smaller;">Tentative</em>'; break;
@@ -509,7 +511,7 @@ $app->route('event', '/events/:slug', function(Request $request, Response $respo
 $app->route('documents', '/documents', function(Request $request, Response $response, Pack32 $app) {
 	$article = $app->db()->row('SELECT * FROM content WHERE slug = "documents"');
 	$response['article'] = $article;
-	$response['title'] = $article['title'] . ' - ' . ORG_NAME;
+	$response['title'] = $article['title'] . ' - ' . Config::get('org_name');
 	return $response->render('documents.php');
 });
 
@@ -689,15 +691,15 @@ $app->route('attach_photo', '/admin/attach/:event_id', function(Request $request
 	$thumbnail_image = image_resize(400, $_FILES['file']['tmp_name'], $allowed_mimes[$_FILES['file']['type']]);
 
 	// copying to S3
-	$s3 = new \S3('AKIAJ4YZBSZU2QJQ337A', '1POMKe8wAKio6RmskWGuAYMWfrtgTLqD1mrTmQsN');
+	$s3 = new \S3(Config::get('aws_key'), Config::get('aws_secret'));
 	if(
 		$s3->putObject(
 			\S3::inputFile($_FILES['file']['tmp_name'], false),
-			'files.cubpack32.com',
+			Config::get('s3_bucket'),
 			$file,
 			\S3::ACL_AUTHENTICATED_READ,
 			[
-				'content-type' => $_FILES['file']['type']
+				'Content-Type' => $_FILES['file']['type']
 			]
 		)
 	) {
@@ -705,11 +707,11 @@ $app->route('attach_photo', '/admin/attach/:event_id', function(Request $request
 		if(
 			$s3->putObject(
 				$thumbnail_image,
-				'files.cubpack32.com',
+				Config::get('s3_bucket'),
 				$thumbnail_file,
 				\S3::ACL_AUTHENTICATED_READ,
 				[
-					'content-type' => $_FILES['file']['type']
+					'Content-Type' => 'image/jpeg'
 				]
 			)
 		)
@@ -720,8 +722,8 @@ $app->route('attach_photo', '/admin/attach/:event_id', function(Request $request
 					'user_id' => $response['user']['id'],
 					'event_id' => $event_id,
 					'filename' => basename($_FILES['file']['tmp_name']),
-					'remote_url' => 'files.cubpack32.com/' . $file,
-					'thumbnail_url' => 'files.cubpack32.com/' . $thumbnail_file,
+					'remote_url' => Config::get('s3_bucket') . '/' . $file,
+					'thumbnail_url' => Config::get('s3_bucket') . '/' . $thumbnail_file,
 					'checksum' => $checksum,
 					'added_on' => time(),
 				]
@@ -751,7 +753,7 @@ $app->route('get_thumbnail', '/thumbnail/:id', function(Request $request, Respon
 	if($filerow = $app->db()->row('SELECT * FROM attachments WHERE id = :id', ['id' => $request['id']])) {
 		$remote_url = $filerow['thumbnail_url'];
 		list($bucket, $file) = explode('/', $remote_url, 2);
-		$s3 = new \S3('AKIAJ4YZBSZU2QJQ337A', '1POMKe8wAKio6RmskWGuAYMWfrtgTLqD1mrTmQsN');
+		$s3 = new \S3(Config::get('aws_key'), Config::get('aws_secret'));
 		$url = $s3->getAuthenticatedURL($bucket, $file, 600);
 		header('location:' . $url);
 		return ' ';
@@ -764,7 +766,7 @@ $app->route('get_file', '/file/:id', function(Request $request, Response $respon
 	if($filerow = $app->db()->row('SELECT * FROM attachments WHERE id = :id', ['id' => $request['id']])) {
 		$remote_url = $filerow['remote_url'];
 		list($bucket, $file) = explode('/', $remote_url, 2);
-		$s3 = new \S3('AKIAJ4YZBSZU2QJQ337A', '1POMKe8wAKio6RmskWGuAYMWfrtgTLqD1mrTmQsN');
+		$s3 = new \S3(Config::get('aws_key'), Config::get('aws_secret'));
 		$url = $s3->getAuthenticatedURL($bucket, $file, 600);
 		header('location:' . $url);
 		return ' ';
@@ -800,7 +802,7 @@ $app->route('upload_file', '/admin/upload/file', function(Request $request, Resp
 
 $app->route('profile', '/profile', function(Request $request, Response $response, Pack32 $app){
 	$app->require_login();
-	$response['title'] = 'Your Profile - ' . ORG_NAME;
+	$response['title'] = 'Your Profile - ' . Config::get('org_name');
 	$response['groups'] = $app->db()->results('SELECT * FROM groups WHERE is_global = 0 ORDER BY name');
 	$user_id = $response['user']['id'];
 	$response['subscribed'] = $app->db()->results('SELECT groups.id, groups.name as group_name, usergroup.id as ug_id, usergroup.name FROM groups INNER JOIN usergroup ON groups.id = usergroup.group_id WHERE groups.is_global = 0 AND user_id = :user_id ORDER BY groups.name', compact('user_id'));
