@@ -749,31 +749,32 @@ $app->route('attach_photo', '/admin/attach/:event_id', function(Request $request
 });
 
 function get_s3_file(Request $request, Pack32 $app, $field) {
-	if(!isset($_SESSION['filecache'])) {
+	$filerow = $app->db()->row('SELECT * FROM attachments WHERE id = :id', ['id' => $request['id']]);
+
+	if(!isset($_SESSION['urlcache'])) {
 		$_SESSION['filecache'] = [];
 	}
-	if(isset($_SESSION['filecache'][$request['id']])) {
-		$filerow = $_SESSION['filecache'][$request['id']];
-		if($filerow['expires'] < time()) {
-			unset($filerow);
-			unset($_SESSION['filecache'][$request['id']]);
+	if(isset($_SESSION['urlcache'][$filerow[$field]])) {
+		$urldata = $_SESSION['urlcache'][$filerow[$field]];
+		if($urldata['expires'] < time()) {
+			unset($_SESSION['urlcache'][$filerow[$field]]);
 		}
 		else {
-			header('location:' . $filerow['url']);
+			header('location:' . $urldata['url']);
 			return ' ';
 		}
-	}
-	if(!isset($filerow)) {
-		$filerow = $app->db()->row('SELECT * FROM attachments WHERE id = :id', ['id' => $request['id']]);
 	}
 	if($filerow) {
 		$remote_url = $filerow[$field];
 		list($bucket, $file) = explode('/', $remote_url, 2);
+
 		$s3 = new \S3(Config::get('aws_key'), Config::get('aws_secret'));
 		$url = $s3->getAuthenticatedURL($bucket, $file, 600);
-		$filerow['url'] = $url;
-		$filerow['expires'] = time() + 600;
-		$_SESSION['filecache'][$request['id']] = $filerow;
+		$urldata = [
+			'url' => $url,
+			'expires' => time() + 600,
+		];
+		$_SESSION['urlcache'][$filerow[$field]] = $urldata;
 		header('location:' . $url);
 		return ' ';
 	}
