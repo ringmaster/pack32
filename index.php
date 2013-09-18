@@ -748,30 +748,46 @@ $app->route('attach_photo', '/admin/attach/:event_id', function(Request $request
 	return $result;
 });
 
-$app->route('get_thumbnail', '/thumbnail/:id', function(Request $request, Response $response, Pack32 $app) {
-	$app->require_login();
-	if($filerow = $app->db()->row('SELECT * FROM attachments WHERE id = :id', ['id' => $request['id']])) {
-		$remote_url = $filerow['thumbnail_url'];
+function get_s3_file(Request $request, Pack32 $app, $field) {
+	if(!isset($_SESSION['filecache'])) {
+		$_SESSION['filecache'] = [];
+	}
+	if(isset($_SESSION['filecache'][$request['id']])) {
+		$filerow = $_SESSION['filecache'][$request['id']];
+		if($filerow['expires'] < time()) {
+			unset($filerow);
+			unset($_SESSION['filecache'][$request['id']]);
+		}
+		else {
+			header('location:' . $filerow['url']);
+			return ' ';
+		}
+	}
+	if(!isset($filerow)) {
+		$filerow = $app->db()->row('SELECT * FROM attachments WHERE id = :id', ['id' => $request['id']]);
+	}
+	if($filerow) {
+		$remote_url = $filerow[$field];
 		list($bucket, $file) = explode('/', $remote_url, 2);
 		$s3 = new \S3(Config::get('aws_key'), Config::get('aws_secret'));
 		$url = $s3->getAuthenticatedURL($bucket, $file, 600);
+		$filerow['url'] = $url;
+		$filerow['expires'] = time() + 600;
+		$_SESSION['filecache'][$request['id']] = $filerow;
 		header('location:' . $url);
 		return ' ';
 	}
 	return ' ';
+};
+
+$app->route('get_thumbnail', '/thumbnail/:id', function(Request $request, Pack32 $app) {
+	$app->require_login();
+	return get_s3_file($request, $app, 'thumbnail_url');
 });
 
-$app->route('get_file', '/file/:id', function(Request $request, Response $response, Pack32 $app) {
+$app->route('get_file', '/file/:id', function(Request $request, Pack32 $app) {
 	$app->require_login();
-	if($filerow = $app->db()->row('SELECT * FROM attachments WHERE id = :id', ['id' => $request['id']])) {
-		$remote_url = $filerow['remote_url'];
-		list($bucket, $file) = explode('/', $remote_url, 2);
-		$s3 = new \S3(Config::get('aws_key'), Config::get('aws_secret'));
-		$url = $s3->getAuthenticatedURL($bucket, $file, 600);
-		header('location:' . $url);
-		return ' ';
-	}
-	return ' ';
+	return get_s3_file($request, $app, 'remote_url');
 });
 
 $app->route('upload_file', '/admin/upload/file', function(Request $request, Response $response, Pack32 $app) {
