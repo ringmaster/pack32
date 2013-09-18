@@ -747,6 +747,7 @@ $app->route('attach_photo', '/admin/attach/:event_id', function(Request $request
 });
 
 $app->route('get_thumbnail', '/thumbnail/:id', function(Request $request, Response $response, Pack32 $app) {
+	$app->require_login();
 	if($filerow = $app->db()->row('SELECT * FROM attachments WHERE id = :id', ['id' => $request['id']])) {
 		$remote_url = $filerow['thumbnail_url'];
 		list($bucket, $file) = explode('/', $remote_url, 2);
@@ -759,6 +760,7 @@ $app->route('get_thumbnail', '/thumbnail/:id', function(Request $request, Respon
 });
 
 $app->route('get_file', '/file/:id', function(Request $request, Response $response, Pack32 $app) {
+	$app->require_login();
 	if($filerow = $app->db()->row('SELECT * FROM attachments WHERE id = :id', ['id' => $request['id']])) {
 		$remote_url = $filerow['remote_url'];
 		list($bucket, $file) = explode('/', $remote_url, 2);
