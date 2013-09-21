@@ -499,13 +499,38 @@ $app->route('event', '/events/:slug', function(Request $request, Response $respo
 
 		$response['event_date'] = $event_date;
 
-		$response['attachments'] = $app->db()->results('SELECT * FROM attachments WHERE event_id = :event_id ORDER BY added_on DESC, id DESC', ['event_id' => $article['id']]);
+		$response['attachments'] = $app->db()->results('SELECT * FROM attachments WHERE event_id = :event_id AND (active = 1 OR user_id = :user_id OR :admin_level > 0) ORDER BY added_on DESC, id DESC', ['event_id' => $article['id'], 'user_id' => $response['user']['id'], 'admin_level' => $response['user']['admin_level'] ]);
+		foreach($response['attachments'] as &$attachment) {
+			if(
+				$attachment['user_id'] == $response['user']['id']
+				|| $response['user']['admin_level'] > 0
+			) {
+				$attachment['deactivate'] = true;
+			}
+			else {
+				$attachment['deactivate'] = false;
+			}
+		}
 		$response['responses'] = $app->db()->results('SELECT * FROM responses WHERE content_id = :event_id ORDER BY id DESC', ['event_id' => $article['id']]);
 
 		return $response->render('event.php');
 	}
 	header('location: /');
 	return 'not found';
+});
+
+$app->route('deactivate_attachment', '/admin/deactivate/:id', function(Request $request, Response $response, Pack32 $app) {
+	if($attachment = $app->db()->results('SELECT * FROM attachments WHERE id = :id AND (user_id = :user_id OR :admin_level > 0) ORDER BY added_on DESC, id DESC', ['id' => $request['id'], 'user_id' => $response['user']['id'], 'admin_level' => $response['user']['admin_level'] ])) {
+		$app->db()->query('UPDATE attachments SET active = 0 WHERE id = :id', ['id' => $request['id']]);
+	}
+	return ' ';
+});
+
+$app->route('reactivate_attachment', '/admin/reactivate/:id', function(Request $request, Response $response, Pack32 $app) {
+	if($attachment = $app->db()->results('SELECT * FROM attachments WHERE id = :id AND (user_id = :user_id OR :admin_level > 0) ORDER BY added_on DESC, id DESC', ['id' => $request['id'], 'user_id' => $response['user']['id'], 'admin_level' => $response['user']['admin_level'] ])) {
+		$app->db()->query('UPDATE attachments SET active = 1 WHERE id = :id', ['id' => $request['id']]);
+	}
+	return ' ';
 });
 
 $app->route('documents', '/documents', function(Request $request, Response $response, Pack32 $app) {

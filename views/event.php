@@ -29,7 +29,15 @@
 			<div class="attachments">
 				<ul style="width:<?= (count($attachments) + 3) * 100 ?>%;">
 				<?php foreach($attachments as $photo): ?>
-					<li><a href="<?= $_app->get_url('get_file', $photo) ?>"><img src="<?= $_app->get_url('get_thumbnail', $photo) ?>"></a></li>
+					<li class="<?= $photo['active'] == 1 ? 'active' : 'inactive' ?>"><?php if($photo['deactivate']): ?>
+							<?php if($photo['active'] == 1) { ?>
+							<span class="deactivate"><a href="<?= $_app->get_url('deactivate_attachment', $photo) ?>"><i class="icon-trash"></i></a></span>
+							<?php } else { ?>
+							<span class="activate"><a href="<?= $_app->get_url('reactivate_attachment', $photo) ?>">DELETED
+								<small>This image is queued for deletion.  It is not visible to others.  Click here to restore.</small></span></a>
+							<?php } ?>
+						<?php endif; ?>
+						<a href="<?= $_app->get_url('get_file', $photo) ?>"><img src="<?= $_app->get_url('get_thumbnail', $photo) ?>"></a></li>
 				<?php endforeach; ?>
 				</ul>
 			</div>
@@ -64,6 +72,15 @@
 					$('.attachments').load('# .attachments > *');
 				})
 		}
+
+		$(document).on('click', '.deactivate a,.activate a', function(ev){
+			var href = $(this).attr('href');
+			$.post(href, function(){
+				$('.attachments').load('# .attachments > *');
+			});
+
+			ev.preventDefault();
+		});
 	});
 </script>
 
