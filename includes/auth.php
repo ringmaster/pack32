@@ -11,6 +11,9 @@ $app->middleware('auth', function(Response $response, Pack32 $app) {
 		}
 		else {
 			setcookie('auth_Token', md5(time()), 1, '/');
+			$response['currentuser'] = false;
+			$response['loggedin'] = false;
+			$response['user'] = false;
 		}
 	}
 	elseif(isset($_SESSION['user_email'])) {
@@ -53,6 +56,7 @@ $app->route('login', '/auth/login', function (Pack32 $app) {
 			);
 			$row = $app->db()->row('SELECT * FROM users WHERE email = :email', ['email'=>$result->email]);
 			$_SESSION['user'] = $row;
+			$app->db()->query('UPDATE users SET account_id = id WHERE id = :id', ['id' => $row['id']]);
 		}
 		$auth_expiry = new \DateTime('+3 months');
 		setcookie('auth_token', $auth_token, $auth_expiry->getTimestamp(), '/');

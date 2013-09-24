@@ -25,7 +25,8 @@ class Pack32 extends App {
 	}
 
 	public function loggedin() {
-		return $this->response()['loggedin'];
+		$response = $this->response();
+		return $response['loggedin'];
 	}
 
 	public function require_editing() {
@@ -41,7 +42,7 @@ class Pack32 extends App {
 
 	public function profile_complete() {
 		if($this->loggedin()) {
-			return $this->db()->val('SELECT count(*) FROM usergroup WHERE user_id = :id', ['id' => $this->response()['user']['id']]) > 0;
+			return $this->db()->val('SELECT count(*) FROM usergroup WHERE account_id = :account_id', ['account_id' => $this->response()['user']['account_id']]) > 0;
 		}
 		else {
 			return true;
@@ -153,7 +154,7 @@ $app->route('home', '/', function (Response $response, Pack32 $app) {
 		DESC LIMIT 5
 	');
 	if($app->loggedin()) {
-		$usergroups = $app->db()->col('SELECT group_id FROM usergroup WHERE user_id = :user_id', ['user_id' => $response['user']['id']]);
+		$usergroups = $app->db()->col('SELECT group_id FROM usergroup WHERE account_id = :account_id', ['account_id' => $response['user']['account_id']]);
 		if($usergroups) {
 			$usergroups = implode(',', $usergroups);
 		}
@@ -222,7 +223,7 @@ $fetch_events = function(Response $response, Request $request, Pack32 $app) {
 
 	$groups_to_get = [];
 	if($app->loggedin()) {
-		$groups_to_get = $app->db()->col('SELECT groups.id FROM groups LEFT JOIN usergroup ON groups.id = usergroup.group_id WHERE groups.is_global = 1 OR usergroup.user_id = :user_id', ['user_id' => $response['user']['id']]);
+		$groups_to_get = $app->db()->col('SELECT groups.id FROM groups LEFT JOIN usergroup ON groups.id = usergroup.group_id WHERE groups.is_global = 1 OR usergroup.account_id = :account_id', ['account_id' => $response['user']['account_id']]);
 	}
 	if(isset($_GET['groups'])) {
 		$groups_to_get = array_filter(array_map('intval', explode(',', $_GET['groups'])));
@@ -549,7 +550,7 @@ $app->route('delete', '/admin/delete/:id', function(Request $request, Response $
 
 $app->route('add_new', '/admin/new', function(Request $request, Response $response, Pack32 $app) {
 	$app->require_editing();
-	$user_groups = $app->db()->col('SELECT group_id FROM usergroup WHERE user_id = :user_id', ['user_id' => $response['user']['id']]);
+	$user_groups = $app->db()->col('SELECT group_id FROM usergroup WHERE account_id = :account_id', ['account_id' => $response['user']['account_id']]);
 	$response['post'] = [
 		'title' => '',
 		'content_type' => 'event',
@@ -846,8 +847,9 @@ $app->route('profile', '/profile', function(Request $request, Response $response
 	$app->require_login();
 	$response['title'] = 'Your Profile - ' . Config::get('org_name');
 	$response['groups'] = $app->db()->results('SELECT * FROM groups WHERE is_global = 0 ORDER BY name');
-	$user_id = $response['user']['id'];
-	$response['subscribed'] = $app->db()->results('SELECT groups.id, groups.name as group_name, usergroup.id as ug_id, usergroup.name FROM groups INNER JOIN usergroup ON groups.id = usergroup.group_id WHERE groups.is_global = 0 AND user_id = :user_id ORDER BY groups.name', compact('user_id'));
+	$account_id = $response['user']['account_id'];
+	$response['subscribed'] = $app->db()->results('SELECT groups.id, groups.name as group_name, usergroup.id as ug_id, usergroup.name, role FROM groups INNER JOIN usergroup ON groups.id = usergroup.group_id WHERE groups.is_global = 0 AND account_id = :account_id ORDER BY groups.name', compact('account_id'));
+	$response['other_accounts'] = $app->db()->results('SELECT * FROM users WHERE account_id = :account_id AND id <> :id', ['account_id'=>$account_id, 'id'=>$response['user']['id']]);
 	return $response->render('profile.php');
 })->get();
 
@@ -855,25 +857,32 @@ $app->route('profile_post', '/profile', function(Request $request, Response $res
 	$app->require_login();
 
 	$user_id = $response['user']['id'];
+	$account_id = $response['user']['account_id'];
 
 	$name = $_POST['profile_name'];
 	$app->db()->query('UPDATE users SET username = :name WHERE id = :user_id', compact('name', 'user_id'));
 
-	$app->db()->query('DELETE FROM usergroup WHERE user_id = :user_id', compact('user_id'));
+	$app->db()->query('DELETE FROM usergroup WHERE account_id = :account_id', compact('account_id'));
 	if(isset($_POST['usergroup'])) {
 		foreach($_POST['usergroup'] as $member) {
 			if(isset($member['subscribed']) && $member['subscribed'] == 'true') {
 				$name = $member['name'];
 				$group_id = $member['group_id'];
-				$app->db()->query('INSERT INTO usergroup (name, group_id, user_id) values (:name, :group_id, :user_id)', compact('name', 'group_id', 'user_id'));
+				$role = $member['role'];
+				$app->db()->query('INSERT INTO usergroup (name, group_id, account_id, role) values (:name, :group_id, :account_id, :role)', compact('name', 'group_id', 'account_id', 'role'));
 			}
 		}
 	}
 
-	if(isset($_POST['new_member']) && $_POST['new_member'] == 'true') {
-		$name = $_POST['new_member_name'];
-		$group_id = $_POST['new_member_group'];
-		$app->db()->query('INSERT INTO usergroup (name, group_id, user_id) values (:name, :group_id, :user_id)', compact('name', 'group_id', 'user_id'));
+	if(isset($_POST['new_member'])) {
+		foreach($_POST['new_member']['name'] as $key => $name) {
+			$name = $_POST['new_member']['name'][$key];
+			if(trim($name) <> '') {
+				$group_id = $_POST['new_member']['group'][$key];
+				$role = $_POST['new_member']['role'][$key];
+				$app->db()->query('INSERT INTO usergroup (name, group_id, account_id, role) values (:name, :group_id, :account_id, :role)', compact('name', 'group_id', 'account_id', 'role'));
+			}
+		}
 	}
 	$app->add_message('Updated profile.', 'success');
 

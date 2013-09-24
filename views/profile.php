@@ -6,32 +6,75 @@
 	<form method="post" action="" class="whiteform">
 		<fieldset>
 			<legend>About You</legend>
-			<label for="profile_name">Your Name</label>
+			<label for="profile_name">Your Full Name</label>
 			<input type="text" id="profile_name" name="profile_name" value="<?= $_response['user']['username'] ?>">
 		</fieldset>
+
+		<fieldset>
+			<legend>Other Emails</legend>
+			<p>Multiple parents can associate their accounts to manage their scouts.</p>
+
+			<?php if(count($other_accounts) > 0): ?>
+
+				<p>The following addresses also manage this account:</p>
+				<ul>
+				<?php foreach($other_accounts as $account): ?>
+					<li><?= $account['username'] ?> &middot; <?= $account['email'] ?></li>
+				<?php endforeach; ?>
+				</ul>
+
+			<?php else: ?>
+				<p>No additional email addresses currently manage this account.</p>
+			<?php endif; ?>
+
+		</fieldset>
+
 		<fieldset>
 			<legend>Subscribed Groups</legend>
 			<p>
-				Please create an association for each boy to his specific den/group.<br>
-				If you are personally associated to a den/committee, add your name as a member and associate yourself to that group.<br>
-				For each group member, please use only that person's <em>first</em> name.<br>
+				Please create an association for <b>you and each scout</b> to one or more groups.<br>
+				You may add a person more than once, to different groups.<br/>
+				Please use only a person's <em>first</em> name.<br>
 				To remove a member, clear the checkbox next to the row.<br>
 				To commit any changes, click the Update button.
 			</p>
-			<ul>
+
+			<ul id="member_list">
 
 			<?php foreach($subscribed as $subscribe): ?>
-				<li><input type="checkbox" name="usergroup[<?= $subscribe['ug_id'] ?>][subscribed]" value="true" checked> <input name="usergroup[<?= $subscribe['ug_id'] ?>][name]" type="text" value="<?= $subscribe['name'] ?>" placeholder="Group Member's Name"> <select name="usergroup[<?= $subscribe['ug_id'] ?>][group_id]">
-					<?php foreach($groups as $group): ?>
-						<option value="<?= $group['id'] ?>" <?= $group['id'] == $subscribe['id'] ? 'selected' : '' ?>><?= $group['name'] ?></option>
-					<?php endforeach; ?>
-				</select></li>
+				<li><input type="checkbox" name="usergroup[<?= $subscribe['ug_id'] ?>][subscribed]" value="true" checked> <input name="usergroup[<?= $subscribe['ug_id'] ?>][name]" type="text" value="<?= $subscribe['name'] ?>" placeholder="Group Member's Name">
+					<select name="usergroup[<?= $subscribe['ug_id'] ?>][group_id]">
+						<?php foreach($groups as $group): ?>
+							<option value="<?= $group['id'] ?>" <?= $group['id'] == $subscribe['id'] ? 'selected' : '' ?>><?= $group['name'] ?></option>
+						<?php endforeach; ?>
+					</select>
+
+					<select name="usergroup[<?= $subscribe['ug_id'] ?>][role]">
+						<option value="0" <?= $_app->selected(0, $subscribe['role']) ?>>Parent/Leader</option>
+						<option value="1" <?= $_app->selected(1, $subscribe['role']) ?>>Scout</option>
+						<option value="2" <?= $_app->selected(1, $subscribe['role']) ?>>Sibling</option>
+						<option value="3" <?= $_app->selected(1, $subscribe['role']) ?>>Other</option>
+					</select>
+
+				</li>
 			<?php endforeach; ?>
-				<li><input type="checkbox" id="new_member" name="new_member" value="true"> <span class="new_member_inputs"><input type="text" name="new_member_name" value="" placeholder="Member's Full Name"> <select name="new_member_group">
+				<li id="new_member" style="display:none;">
+					<input type="checkbox" name="new_member[exists][]" value="true">
+					<input type="text" name="new_member[name][]" value="" placeholder="Member's Full Name">
+						<select name="new_member[group][]">
 						<?php foreach($groups as $group): ?>
 							<option value="<?= $group['id'] ?>"><?= $group['name'] ?></option>
 						<?php endforeach; ?>
-					</select></span><label for="new_member" class="new_member_notice">Check this box to add a new member.</label></li>
+					</select>
+
+					<select name="new_member[role][]">
+						<option value="0" >Parent/Leader</option>
+						<option value="1" selected>Scout</option>
+						<option value="2" selected>Sibling</option>
+						<option value="3" selected>Other</option>
+					</select>
+
+					<li><a href="#add_member" class="add_member">Click here to add a new member.</a></li>
 			</ul>
 		</fieldset>
 		<input type="submit" class="button" value="Update">
@@ -40,14 +83,14 @@
 
 <script>
 	$(function(){
-		$('#new_member').on('change', function(){
-			$checkbox = $(this);
-			if($checkbox.is(':checked')) {
-				$checkbox.closest('li').addClass('active');
-			}
-			else {
-				$checkbox.closest('li').removeClass('active');
-			}
+		$('.add_member').on('click', function(){
+			$html = $('<li>' + $('#new_member').html() + '</li>');
+			$html.insertBefore('#new_member').show();
+			$html.find('input[type=checkbox]')
+				.attr('checked', true)
+				.on('change', function(){
+					$(this).closest('li').remove();
+				});
 		});
 	});
 </script>
