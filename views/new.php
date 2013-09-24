@@ -1,7 +1,7 @@
 <html>
 <head>
 	<title>Add New Content</title>
-	<link rel="stylesheet" href="/css/pack32.css" type="text/css">
+	<link rel="stylesheet" href="/theme/pack32/pack32.css" type="text/css">
 	<link rel="stylesheet" href="/js/redactor/redactor.css" type="text/css">
 	<link rel="stylesheet" href="/js/select2/select2.css" type="text/css">
 	<link href="//netdna.bootstrapcdn.com/font-awesome/3.2.1/css/font-awesome.css" rel="stylesheet">

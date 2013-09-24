@@ -1,0 +1,29 @@
+body {
+  background: url(/theme/troop4104/img/bg.png) center;
+}
+#header {
+  background-image: url(/theme/troop4104/img/patches.png);
+}
+#header h1 a {
+  background: url(/theme/troop4104/img/masthead_wide.png);
+}
+#nav {
+  background: url(/theme/troop4104/img/nav.png) center;
+}
+#nav li {
+  background: url(/theme/troop4104/img/menu_btn_left.png) top left;
+}
+#nav a {
+  background: url(/theme/troop4104/img/menu_btn_right.png) top right;
+}
+#content .sidebar {
+  background: url(/theme/troop4104/img/tl.png) top left no-repeat;
+}
+#content ol.calendar {
+  background: url(/theme/troop4104/img/tl.png) top left no-repeat;
+}
+@media (max-width: 980px) {
+  #header h1 a {
+    background: url(/theme/troop4104/img/pack_32.png);
+  }
+}

@@ -1,7 +1,8 @@
 <html>
 <head>
 	<title><?= $title ?></title>
-	<link rel="stylesheet" href="/css/pack32.css" type="text/css">
+	<link rel="stylesheet" href="/css/packsite.css" type="text/css">
+	<link rel="stylesheet" href="/theme/<?= $config['theme'] ?>/<?= $config['theme'] ?>.css" type="text/css">
 	<link rel="stylesheet" href="/js/redactor/redactor.css" type="text/css">
 	<link rel="stylesheet" href="/js/select2/select2.css" type="text/css">
 	<link rel="stylesheet" href="/js/dropzone/css/dropzone.css" type="text/css">
