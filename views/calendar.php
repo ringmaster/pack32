@@ -90,17 +90,19 @@
 			var href = '<?= $_app->get_url('add_new') ?>?etime=' + $(this).data('date') + ' #editor';
 			$( "#dialog-form" ).load(href, openModal);
 		});
-		$('#pick_group')
-			.select2()
-			.change(function(c){
-				console.log(c);
-				var data = {groups: c.val};
-				$('#calendar').load(location.origin + location.pathname + ' #calendar > *', data);
-				$('.cal_link').each(function(){
-					$this = $(this);
-					$this.attr('href', $this.attr('href').replace(/\?.+$|$/, '?groups=' + c.val.join(',') ));
+		if(!(/iPhone|iPod|iPad|Android|BlackBerry/).test(navigator.userAgent)) {
+			$('#pick_group')
+				.select2()
+				.change(function(c){
+					console.log(c);
+					var data = {groups: c.val};
+					$('#calendar').load(location.origin + location.pathname + ' #calendar > *', data);
+					$('.cal_link').each(function(){
+						$this = $(this);
+						$this.attr('href', $this.attr('href').replace(/\?.+$|$/, '?groups=' + c.val.join(',') ));
+					});
 				});
-			});
+		}
 	})
 </script>
 
