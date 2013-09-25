@@ -1,7 +1,13 @@
 <?php include 'header.php'; ?>
 
 <main id="content">
-	<p class="ical_subscribe"><a href="webcal://<?= $_SERVER['HTTP_HOST'] ?>/ical?groups=<?= implode(',', $groups_to_get) ?>" class="cal_link button"><i class="icon-calendar"></i> Subscribe</a></p>
+	<p class="ical_subscribe"><a href="<?php
+		$url = 'webcal://' . $_SERVER['HTTP_HOST'] . '/ical?groups=' . implode(',', $groups_to_get);
+		if(stripos(strtolower($_SERVER['HTTP_USER_AGENT']), 'android') !== false) {
+			$url = 'http://www.google.com/calendar/render?cid=' . urlencode($url);
+		}
+		echo $url;
+		?>" class="cal_link button"><i class="icon-calendar"></i> Subscribe</a></p>
 	<h1><?= $sel_date->format('F Y') ?></h1>
 
 	<?php
