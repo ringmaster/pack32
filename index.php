@@ -43,7 +43,7 @@ class Pack32 extends App {
 
 	public function profile_complete() {
 		if($this->loggedin()) {
-			return $this->db()->val('SELECT count(*) FROM usergroup WHERE account_id = :account_id', ['account_id' => $this->response()['user']['account_id']]) > 0;
+			return $this->db()->val('SELECT count(*) FROM usergroup WHERE account_id = :account_id', ['account_id' => $this->response()['user']['account_id']]) > 1;
 		}
 		else {
 			return true;
