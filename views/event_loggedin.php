@@ -79,6 +79,9 @@
 						<thead>
 						<tr>
 							<th>Name</th>
+							<?php if($_response['user']['admin_level'] > 0): ?>
+								<th>?</th>
+							<?php endif; ?>
 							<th>No</th>
 							<th>Yes</th>
 						</tr>
@@ -90,6 +93,12 @@
 
 								<span class="group <?= $member['is_global'] == 1 ? 'global' : '' ?>"><?= $member['group_name'] ?></span>
 								</th>
+
+								<?php if($_response['user']['admin_level'] > 0): ?>
+								<td><input class="rsvp" type="radio" name="rsvp[<?= $member['id'] ?>]"
+													 value="0" <?= $_app->checked($member['is_rsvp'], 0) ?>></td>
+								<?php endif; ?>
+
 								<td><input class="rsvp" type="radio" name="rsvp[<?= $member['id'] ?>]"
 													 value="1" <?= $_app->checked($member['is_rsvp'], 1) ?>></td>
 								<td><input class="rsvp" type="radio" name="rsvp[<?= $member['id'] ?>]"
@@ -107,31 +116,33 @@
 
 			<?php endif; ?>
 
-			<h2><?= $rsvp_count ?> Attendees</h2>
+			<div id="attendees">
+				<h2><?= $rsvp_count ?> Attendees</h2>
 
-			<ol class="attendees">
-			<?php
-			$last_role = 0;
-			foreach ($rsvps as $account):
-				$first = array_shift($account);
-				?>
-				<li class="<?= $first['role'] == 0 ? 'parent' : 'other' ?>"><i class="<?= $first['role'] == 0 ? 'icon-group' : 'icon-user' ?>"></i> <?= $first['name'] ?>
+				<ol class="attendees">
 				<?php
-				if(count($account)){
-					echo '<ol>';
-					foreach($account as $member):
-						?>
-						<li class="<?= $member['role'] == 0 ? 'parent' : 'other' ?>"><i class="<?= $member['role'] == 0 ? 'icon-group' : 'icon-user' ?>"></i> <?= $member['name'] ?></li>
-						<?php
-					endforeach;
-					echo '</ol>';
-				}
+				$last_role = 0;
+				foreach ($rsvps as $account):
+					$first = array_shift($account);
+					?>
+					<li class="<?= $first['role'] == 0 ? 'parent' : 'other' ?>"><i class="<?= $first['role'] == 0 ? 'icon-group' : 'icon-user' ?>"></i> <?= $first['name'] ?>
+					<?php
+					if(count($account)){
+						echo '<ol>';
+						foreach($account as $member):
+							?>
+							<li class="<?= $member['role'] == 0 ? 'parent' : 'other' ?>"><i class="<?= $member['role'] == 0 ? 'icon-group' : 'icon-user' ?>"></i> <?= $member['name'] ?></li>
+							<?php
+						endforeach;
+						echo '</ol>';
+					}
+					?>
+					</li>
+					<?php
+				endforeach;
 				?>
-				</li>
-				<?php
-			endforeach;
-			?>
-			</ol>
+				</ol>
+			</div>
 
 
 		<?php endif; ?>
@@ -181,6 +192,7 @@
 				$form.serialize(),
 				function(result){
 					Messenger().post(result);
+					$('#attendees').load(location.href + ' #attendees > *');
 				}
 			)
 		});
