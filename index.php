@@ -542,7 +542,7 @@ INNER JOIN groups g1
 WHERE
   (u.account_id = :account_id OR 1 = :is_admin)
   AND (g.is_global = 1 OR g.id = u.group_id)
-ORDER BY u.role ASC;
+ORDER BY u.account_id = :account_id DESC, u.account_id ASC, u.role ASC;
 ', ['event_id' => $article['id'], 'account_id' => $response['user']['account_id'], 'is_admin' => $response['user']['admin_level'] > 0 ? 1 : 0]);
 
 			$attendees = $app->db()->results('
