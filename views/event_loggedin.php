@@ -86,7 +86,10 @@
 						<tbody>
 						<?php foreach ($members as $member): ?>
 							<tr class="<?= $member['role'] == 0 ? 'parent' : 'other' ?> <?= $member['account_id'] == $_response['user']['account_id'] ? 'your_family' : 'other_family' ?>">
-								<th><i class="<?= $member['role'] == 0 ? 'icon-group' : 'icon-user' ?>"></i> <?= $member['name'] ?></th>
+								<th><i class="<?= $member['role'] == 0 ? 'icon-group' : 'icon-user' ?>"></i> <?= $member['name'] ?>
+
+								<span class="group <?= $member['is_global'] == 1 ? 'global' : '' ?>"><?= $member['group_name'] ?></span>
+								</th>
 								<td><input class="rsvp" type="radio" name="rsvp[<?= $member['id'] ?>]"
 													 value="1" <?= $_app->checked($member['is_rsvp'], 1) ?>></td>
 								<td><input class="rsvp" type="radio" name="rsvp[<?= $member['id'] ?>]"

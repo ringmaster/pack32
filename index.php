@@ -526,16 +526,22 @@ SELECT
   r.id AS rsvp_id,
   paid,
   r.is_rsvp,
-  role
+  role,
+  g1.name AS group_name,
+  g1.is_global
 FROM usergroup u
 LEFT JOIN rsvps r
   ON r.event_id = :event_id
   AND r.usergroup_id = u.id
 INNER JOIN eventgroup e
   ON e.event_id = :event_id
+INNER JOIN groups g
+  ON g.id = e.group_id
+INNER JOIN groups g1
+  ON g1.id = u.group_id
 WHERE
   (u.account_id = :account_id OR 1 = :is_admin)
-  AND u.group_id = e.group_id
+  AND (g.is_global = 1 OR g.id = u.group_id)
 ORDER BY u.role ASC;
 ', ['event_id' => $article['id'], 'account_id' => $response['user']['account_id'], 'is_admin' => $response['user']['admin_level'] > 0 ? 1 : 0]);
 
