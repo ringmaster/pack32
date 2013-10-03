@@ -513,7 +513,7 @@ $app->route('event', '/events/:slug', function(Request $request, Response $respo
 				$attachment['deactivate'] = false;
 			}
 		}
-		$response['responses'] = $app->db()->results('SELECT * FROM responses WHERE content_id = :event_id ORDER BY id DESC', ['event_id' => $article['id']]);
+		$response['responses'] = $app->db()->results('SELECT * FROM responses r INNER JOIN users u ON u.id = r.user_id WHERE content_id = :event_id ORDER BY r.id DESC', ['event_id' => $article['id']]);
 
 		if($app->loggedin()) {
 
@@ -976,6 +976,8 @@ $app->route('rsvp_post', '/rsvp/:id', function(Response $response, Request $requ
 	$response->set_renderer(JSONRenderer::create('', $app));
 	return $response->render();
 })->post();
+
+//include 'includes/usermap.php';
 
 $app();
 

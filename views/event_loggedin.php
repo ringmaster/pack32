@@ -27,6 +27,28 @@
 			</div>
 
 			<div class="responses">
+
+				<div class="comments">
+				<?php if(count($responses) > 0): ?>
+
+					<h2>Responses</h2>
+
+					<?php foreach($responses as $response): ?>
+						<aside>
+
+						<h3>By <?= $response['username'] ?> on <?= date('M j, Y', $response['added_on']) ?></h3>
+
+							<div>
+								<?= $response['content']; ?>
+							</div>
+
+						</aside>
+					<?php endforeach; ?>
+
+				<?php endif; ?>
+
+				</div>
+
 				<h2>Photos</h2>
 
 				<div class="attachments <?= count($attachments) > 0 ? '' : 'empty' ?>">
@@ -87,7 +109,15 @@
 						</tr>
 						</thead>
 						<tbody>
-						<?php foreach ($members as $member): ?>
+						<?php $other_toggle = false; foreach ($members as $member): ?>
+							<?php
+							if($_response['user']['admin_level'] > 0 && $member['account_id'] != $_response['user']['account_id'] && !$other_toggle) {
+								$other_toggle = true;
+								?>
+								<tr class="other_toggle"><td colspan="4"><a href="#edit_all">Toggle display of all families</a></td></tr>
+								<?php
+							}
+							?>
 							<tr class="<?= $member['role'] == 0 ? 'parent' : 'other' ?> <?= $member['account_id'] == $_response['user']['account_id'] ? 'your_family' : 'other_family' ?>">
 								<th><i class="<?= $member['role'] == 0 ? 'icon-group' : 'icon-user' ?>"></i> <?= $member['name'] ?>
 
@@ -128,13 +158,13 @@
 					<li class="<?= $first['role'] == 0 ? 'parent' : 'other' ?>"><i class="<?= $first['role'] == 0 ? 'icon-group' : 'icon-user' ?>"></i> <?= $first['name'] ?>
 					<?php
 					if(count($account)){
-						echo '<ol>';
+						if($first['role'] == 0) echo '<ol>';
 						foreach($account as $member):
 							?>
 							<li class="<?= $member['role'] == 0 ? 'parent' : 'other' ?>"><i class="<?= $member['role'] == 0 ? 'icon-group' : 'icon-user' ?>"></i> <?= $member['name'] ?></li>
 							<?php
 						endforeach;
-						echo '</ol>';
+						if($first['role'] == 0) echo '</ol>';
 					}
 					?>
 					</li>
@@ -195,6 +225,10 @@
 					$('#attendees').load(location.href + ' #attendees > *');
 				}
 			)
+		});
+
+		$(document).on('click', '.other_toggle a', function(){
+			$('.other_family').toggle();
 		});
 	});
 </script>

@@ -553,6 +553,10 @@ table.rsvp {
 	}
 	.other_family {
 		opacity: 0.35;
+		display: none;
+	}
+	.other_toggle td {
+		height: 2em;
 	}
 
 	.group {
@@ -567,9 +571,14 @@ table.rsvp {
 		}
 	}
 }
+#content .attendees {
+	ol {
+		margin-bottom: 0;
+	}
 
-#content .attendees li {
-	list-style-type: none;
+	li {
+		list-style-type: none;
+	}
 }
 
 #content .deactivate,
