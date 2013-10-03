@@ -2,19 +2,15 @@
 
 <main id="content" class="event">
 	<article class="post" data-article-id="<?= $article['id'] ?>">
-		<?php if ($_app->can_edit()): ?>
-			<div class="toolkit">
-				<a class="edit modaldlg" href="<?= $_app->get_url('edit', $article) ?>#editor"><i class="icon-edit" title="edit article"></i></a>
-				<a class="delete" href="<?= $_app->get_url('delete', $article) ?>"><i class="icon-trash" title="delete article"></i></a>
-			</div>
-		<?php endif; ?>
+
 		<h1><?= $article['title'] ?></h1>
+
 		<h2><?= $event_date ?></h2>
 
 		<div class="groups">
 			Participants:
-			<?php foreach($groups as $group): ?>
-			<span class="group <?= $group['is_global'] != 0 ? 'global' : '' ?>"><?= $group['name'] ?></span>
+			<?php foreach ($groups as $group): ?>
+				<span class="group <?= $group['is_global'] != 0 ? 'global' : '' ?>"><?= $group['name'] ?></span>
 			<?php endforeach; ?>
 		</div>
 
@@ -24,65 +20,16 @@
 
 		<div class="responses">
 			<h2>Responses</h2>
-		<?php if($_app->loggedin()) : ?>
 
-			<div class="attachments">
-				<ul style="width:<?= (count($attachments) + 3) * 100 ?>%;">
-				<?php foreach($attachments as $photo): ?>
-					<li class="<?= $photo['active'] == 1 ? 'active' : 'inactive' ?>"><?php if($photo['deactivate']): ?>
-							<?php if($photo['active'] == 1) { ?>
-							<span class="deactivate"><a href="<?= $_app->get_url('deactivate_attachment', $photo) ?>"><i class="icon-trash"></i></a></span>
-							<?php } else { ?>
-							<span class="activate"><a href="<?= $_app->get_url('reactivate_attachment', $photo) ?>">DELETED
-								<small>This image is queued for deletion.  It is not visible to others.  Click here to restore.</small></span></a>
-							<?php } ?>
-						<?php endif; ?>
-						<a href="<?= $_app->get_url('get_file', $photo) ?>"><img src="<?= $_app->get_url('get_thumbnail', $photo) ?>"></a></li>
-				<?php endforeach; ?>
-				</ul>
-			</div>
+			<p>Photos and responses are available only to logged-in users. Please log in via the button on the toolbar at the
+				top of the page to view and add responses.</p>
 
-			<div class="dropzone"><span class="notice">Drop images into this space from your computer or <span style="text-decoration: underline">click here</span> to attach them to this event.</span></div>
-
-		<?php else: ?>
-			<p>Responses are available only to logged-in users.  Please log in via the button on the toolbar at the top of the page to view and add responses.</p>
-			<p>There are <?= count($attachments) ?> photos and <?= count($responses) ?> responses currently available to view on this event.</p>
-		<?php endif; ?>
+			<p>There are <?= count($attachments) ?> photos and <?= count($responses) ?> responses currently available to view
+				on this event.</p>
 		</div>
 
 	</article>
 </main>
-
-<script>
-	$(function(){
-		$('.dropzone')
-			.dropzone({
-				url: '<?= $_app->get_url('attach_photo', ['event_id' => $article['id']]) ?>',
-				acceptedFiles: 'image/*,application/pdf,video/*',
-				paramName: 'file',
-				clickable: true
-			});
-		if($('.dropzone').length) {
-			Dropzone.forElement(".dropzone")
-				.on('selectedfiles', function(){
-					$('.dropzone .notice').hide();
-					$('.dropzone .dz-success').remove();
-				})
-				.on('complete', function(){
-					$('.attachments').load('# .attachments > *');
-				})
-		}
-
-		$(document).on('click', '.deactivate a,.activate a', function(ev){
-			var href = $(this).attr('href');
-			$.post(href, function(){
-				$('.attachments').load('# .attachments > *');
-			});
-
-			ev.preventDefault();
-		});
-	});
-</script>
 
 <?php include 'footer.php'; ?>
 

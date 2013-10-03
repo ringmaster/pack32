@@ -25,6 +25,9 @@ strong, b {
 em, i {
 	font-style: italic;
 }
+small {
+	font-size: smaller;
+}
 
 .wrapper {
 	margin: 0 auto;
@@ -42,6 +45,7 @@ em, i {
 	height: 140px;
 
 	h1 a {
+		background-repeat: no-repeat;
 		text-indent: -9999px;
 		display: block;
 		width: 349px;
@@ -461,7 +465,10 @@ em, i {
 	padding-top: 20px;
 	margin-top: 20px;
 	.dropzone {
-		min-height: 200px;
+		min-height: 120px;
+		border: 2px dashed rgba(0,0,0,0.3);
+		margin: 15px 0 20px;
+		.box-shadow(inset 6px 6px 16px rgba(0,0,0,0.2));
 	}
 	.dz-started .notice {
 		display: none;
@@ -472,14 +479,35 @@ em, i {
 	.dropzone .dz-error .dz-error-mark span {
 		//display: block;
 	}
+	.dropzone .dz-default.dz-message {
+		background-image: none;
+		text-align: center;
+		height: auto;
+		margin-top: 30px;
+		top: 0;
+	}
 }
 
 #content .attachments {
 	position: relative;
 	overflow: auto;
-	height: 400px;
+	height: 390px;
+	-webkit-overflow-scrolling: touch;
+
+	background: -moz-linear-gradient(left,  rgba(0,0,0,0.3) 0%, rgba(0,0,0,0) 10%, rgba(0,0,0,0) 90%, rgba(0,0,0,0.3) 100%); /* FF3.6+ */
+	background: -webkit-gradient(linear, left top, right top, color-stop(0%,rgba(0,0,0,0.3)), color-stop(10%,rgba(0,0,0,0)), color-stop(90%,rgba(0,0,0,0)), color-stop(100%,rgba(0,0,0,0.3))); /* Chrome,Safari4+ */
+	background: -webkit-linear-gradient(left,  rgba(0,0,0,0.3) 0%,rgba(0,0,0,0) 10%,rgba(0,0,0,0) 90%,rgba(0,0,0,0.3) 100%); /* Chrome10+,Safari5.1+ */
+	background: -o-linear-gradient(left,  rgba(0,0,0,0.3) 0%,rgba(0,0,0,0) 10%,rgba(0,0,0,0) 90%,rgba(0,0,0,0.3) 100%); /* Opera 11.10+ */
+	background: -ms-linear-gradient(left,  rgba(0,0,0,0.3) 0%,rgba(0,0,0,0) 10%,rgba(0,0,0,0) 90%,rgba(0,0,0,0.3) 100%); /* IE10+ */
+	background: linear-gradient(to right,  rgba(0,0,0,0.3) 0%,rgba(0,0,0,0) 10%,rgba(0,0,0,0) 90%,rgba(0,0,0,0.3) 100%); /* W3C */
+	filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#4d000000', endColorstr='#4d000000',GradientType=1 ); /* IE6-9 */
+
+	&.empty {
+		height: 0px;
+	}
 	ul {
 		list-style: none;
+		margin: 15px 0;
 	}
 	li {
 		float: left;
@@ -493,6 +521,43 @@ em, i {
 			background: rgba(64,0,0,1);
 		}
 	}
+}
+
+table.rsvp {
+	width: 100%;
+	margin-bottom: 20px;
+	thead {
+		background-color: rgba(0,0,0,0.7);
+	}
+	th {
+		font-weight: bold;
+		&.parent {
+			padding-left: 0px;
+		}
+		&.other {
+			padding-left: 15px;
+		}
+	}
+	tr, td, th {
+		height: 1em;
+		line-height: 1.5em;
+	}
+	td {
+		text-align: center;
+	}
+	tbody th {
+		text-align: left;
+	}
+	tr:nth-child(2n) {
+		background-color: rgba(0,0,0,0.3);
+	}
+	.other_family {
+		opacity: 0.75;
+	}
+}
+
+#content .attendees li {
+	list-style-type: none;
 }
 
 #content .deactivate,
@@ -516,6 +581,9 @@ em, i {
 
 
 @media (max-width: 980px) {
+	html body {
+		background-position: top left;
+	}
 	#header {
 		background-image: none;
 		height: 80px;

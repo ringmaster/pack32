@@ -1,11 +1,13 @@
 body {
   background: url(/theme/troop4104/img/bg.png) center;
+  color: #333;
 }
 #header {
   background-image: url(/theme/troop4104/img/patches.png);
 }
 #header h1 a {
-  background: url(/theme/troop4104/img/masthead_wide.png);
+  background-image: url(/theme/troop4104/img/masthead_wide.png);
+  width: 409px;
 }
 #nav {
   background: url(/theme/troop4104/img/nav.png) center;
@@ -22,8 +24,22 @@ body {
 #content ol.calendar {
   background: url(/theme/troop4104/img/tl.png) top left no-repeat;
 }
+#content h2 {
+  color: #4C9D99;
+}
+#nav a:hover {
+  color: #4C9D99;
+  text-shadow: 2px 2px 1px rgba(0, 0, 0, 0.4);
+}
+#content a {
+  color: #4C9D99;
+}
+#content a:hover {
+  color: white;
+  text-shadow: 2px 2px 1px rgba(0, 0, 0, 0.4);
+}
 @media (max-width: 980px) {
   #header h1 a {
-    background: url(/theme/troop4104/img/pack_32.png);
+    background-image: url(/theme/troop4104/img/pack_32.png);
   }
 }

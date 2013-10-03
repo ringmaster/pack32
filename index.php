@@ -3,6 +3,7 @@
 namespace Microsite;
 
 use Microsite\DB\PDO\DB;
+use Microsite\Renderers\JSONRenderer;
 
 include 'microsite.phar';
 
@@ -514,7 +515,63 @@ $app->route('event', '/events/:slug', function(Request $request, Response $respo
 		}
 		$response['responses'] = $app->db()->results('SELECT * FROM responses WHERE content_id = :event_id ORDER BY id DESC', ['event_id' => $article['id']]);
 
-		return $response->render('event.php');
+		if($app->loggedin()) {
+
+			$response['members'] = $app->db()->results('
+SELECT
+  u.id,
+  u.group_id,
+  u.name,
+  u.account_id,
+  r.id AS rsvp_id,
+  paid,
+  r.is_rsvp,
+  role
+FROM usergroup u
+LEFT JOIN rsvps r
+  ON r.event_id = :event_id
+  AND r.usergroup_id = u.id
+INNER JOIN eventgroup e
+  ON e.event_id = :event_id
+WHERE
+  (u.account_id = :account_id OR 1 = :is_admin)
+  AND u.group_id = e.group_id
+ORDER BY u.role ASC;
+', ['event_id' => $article['id'], 'account_id' => $response['user']['account_id'], 'is_admin' => $response['user']['admin_level'] > 0 ? 1 : 0]);
+
+			$attendees = $app->db()->results('
+SELECT
+  u.id,
+  u.group_id,
+  u.name,
+  u.account_id,
+  r.id AS rsvp_id,
+  paid,
+  r.is_rsvp,
+  role
+FROM usergroup u
+INNER JOIN rsvps r
+  ON r.event_id = :event_id
+  AND r.usergroup_id = u.id
+WHERE
+  is_rsvp = 2
+ORDER BY u.role ASC, u.name ASC;
+', ['event_id' => $article['id']]);
+
+			$rsvps = array();
+			$rsvp_count = 0;
+			foreach($attendees as $attendee) {
+				$rsvps[$attendee['account_id']][$attendee['id']] = $attendee;
+				$rsvp_count++;
+			}
+			$response['rsvps'] = $rsvps;
+			$response['rsvp_count'] = $rsvp_count;
+
+			return $response->render('event_loggedin.php');
+		}
+		else {
+			return $response->render('event.php');
+		}
 	}
 	header('location: /');
 	return 'not found';
@@ -848,7 +905,7 @@ $app->route('profile', '/profile', function(Request $request, Response $response
 	$response['title'] = 'Your Profile - ' . Config::get('org_name');
 	$response['groups'] = $app->db()->results('SELECT * FROM groups WHERE is_global = 0 ORDER BY name');
 	$account_id = $response['user']['account_id'];
-	$response['subscribed'] = $app->db()->results('SELECT groups.id, groups.name as group_name, usergroup.id as ug_id, usergroup.name, role FROM groups INNER JOIN usergroup ON groups.id = usergroup.group_id WHERE groups.is_global = 0 AND account_id = :account_id ORDER BY groups.name', compact('account_id'));
+	$response['subscribed'] = $app->db()->results('SELECT groups.id, groups.name as group_name, usergroup.id as ug_id, usergroup.name, role FROM groups INNER JOIN usergroup ON groups.id = usergroup.group_id WHERE groups.is_global = 0 AND account_id = :account_id ORDER BY role, groups.name', compact('account_id'));
 	$response['other_accounts'] = $app->db()->results('SELECT * FROM users WHERE account_id = :account_id AND id <> :id', ['account_id'=>$account_id, 'id'=>$response['user']['id']]);
 	return $response->render('profile.php');
 })->get();
@@ -859,17 +916,21 @@ $app->route('profile_post', '/profile', function(Request $request, Response $res
 	$user_id = $response['user']['id'];
 	$account_id = $response['user']['account_id'];
 
+	// Set the username
 	$name = $_POST['profile_name'];
 	$app->db()->query('UPDATE users SET username = :name WHERE id = :user_id', compact('name', 'user_id'));
 
-	$app->db()->query('DELETE FROM usergroup WHERE account_id = :account_id', compact('account_id'));
+	// Update existing records
 	if(isset($_POST['usergroup'])) {
-		foreach($_POST['usergroup'] as $member) {
+		foreach($_POST['usergroup'] as $member_id => $member) {
 			if(isset($member['subscribed']) && $member['subscribed'] == 'true') {
 				$name = $member['name'];
 				$group_id = $member['group_id'];
 				$role = $member['role'];
-				$app->db()->query('INSERT INTO usergroup (name, group_id, account_id, role) values (:name, :group_id, :account_id, :role)', compact('name', 'group_id', 'account_id', 'role'));
+				$app->db()->query('UPDATE usergroup SET name = :name, group_id = :group_id, account_id = :account_id, role = :role WHERE id = :member_id', compact('name', 'group_id', 'account_id', 'role', 'member_id'));
+			}
+			else {
+				$app->db()->query('DELETE FROM usergroup WHERE id = :member_id', compact('member_id'));
 			}
 		}
 	}
@@ -888,6 +949,26 @@ $app->route('profile_post', '/profile', function(Request $request, Response $res
 
 	header('location: ' . $app->get_url('profile'));
 	die('redirecting');
+})->post();
+
+$app->route('rsvp_post', '/rsvp/:id', function(Response $response, Request $request, Pack32 $app) {
+	$rsvps = $_POST['rsvp'];
+	foreach($rsvps as $member_id => $rsvp) {
+		$app->db()->query(
+			'INSERT INTO rsvps (event_id, usergroup_id, is_rsvp) VALUES (:event_id, :usergroup_id, :is_rsvp) ON DUPLICATE KEY UPDATE is_rsvp = :is_rsvp',
+			[
+				'event_id' => $request['id'],
+				'usergroup_id' => $member_id,
+				'is_rsvp' => $rsvp
+			]
+		);
+	}
+	$response['message'] = 'You have successfully updated your RSVP settings for this event.';
+	$response['type'] = 'info';
+	$response['showCloseButton'] = true;
+
+	$response->set_renderer(JSONRenderer::create('', $app));
+	return $response->render();
 })->post();
 
 $app();

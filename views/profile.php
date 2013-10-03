@@ -31,13 +31,13 @@
 
 		<fieldset>
 			<legend>Subscribed Groups</legend>
-			<p>
-				Please create an association for <b>you and each scout</b> to one or more groups.<br>
-				You may add a person more than once, to different groups.<br/>
-				Please use only a person's <em>first</em> name.<br>
-				To remove a member, clear the checkbox next to the row.<br>
-				To commit any changes, click the Update button.
-			</p>
+			<ol>
+				<li>Please create an association for <b>you and each scout</b> to one or more groups.</li>
+				<li>You may add a person more than once, so that they can belong to multiple groups.</li>
+				<li>Please use only a person's <em>first</em> name.</li>
+				<li>To remove a member, clear the checkbox next to the row.</li>
+				<li>To commit any changes, click the Update button.</li>
+			</ol>
 
 			<ul id="member_list">
 
@@ -52,8 +52,8 @@
 					<select name="usergroup[<?= $subscribe['ug_id'] ?>][role]">
 						<option value="0" <?= $_app->selected(0, $subscribe['role']) ?>>Parent/Leader</option>
 						<option value="1" <?= $_app->selected(1, $subscribe['role']) ?>>Scout</option>
-						<option value="2" <?= $_app->selected(1, $subscribe['role']) ?>>Sibling</option>
-						<option value="3" <?= $_app->selected(1, $subscribe['role']) ?>>Other</option>
+						<option value="2" <?= $_app->selected(2, $subscribe['role']) ?>>Sibling</option>
+						<option value="3" <?= $_app->selected(3, $subscribe['role']) ?>>Other</option>
 					</select>
 
 				</li>
