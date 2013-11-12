@@ -77,7 +77,7 @@
 				</ul>
 			</li>
 		<?php
-			$current_date->modify('+23 hours');
+			$current_date->modify('+24 hours');
 		endwhile;
 		?>
 		</ol>

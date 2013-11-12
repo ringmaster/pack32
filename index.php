@@ -489,14 +489,14 @@ $app->route('event', '/events/:slug', function(Request $request, Response $respo
 				$event_date = $start_date;
 			}
 			else {
-				$event_date = $start_date . ' ' . date('g:ip', $article['event_on']) . ' - ' . date('g:ip', $article['event_end']);
+				$event_date = $start_date . ' ' . date('g:ia', $article['event_on']) . ' - ' . date('g:ia', $article['event_end']);
 			}
 		}
 		elseif($article['event_end'] == 0) {
-			$event_date = $start_date . ' ' . date('g:ip', $article['event_on']);
+			$event_date = $start_date . ' ' . date('g:ia', $article['event_on']);
 		}
 		else {
-			$event_date = $start_date . ' ' . date('g:ip', $article['event_on']) . ' - ' . $end_date . ' ' . date('g:ip', $article['event_end']);
+			$event_date = $start_date . ' ' . date('g:ia', $article['event_on']) . ' - ' . $end_date . ' ' . date('g:ia', $article['event_end']);
 		}
 
 		$response['event_date'] = $event_date;
@@ -671,7 +671,7 @@ function add_content(Request $request, Response $response, Pack32 $app) {
 		'event_on' => $event_on,
 		'event_end' => $event_end,
 		'status' => $_POST['status'],
-		'has_rsvp' => $_POST['has_rsvp'],
+		'has_rsvp' => isset($_POST['has_rsvp']) ? $_POST['has_rsvp'] : 0,
 	];
 	$app->db()->query('
 		INSERT INTO content
