@@ -216,10 +216,13 @@
 
 		$(document).on('change', 'input.rsvp', function(){
 			var $form = $(this).closest('form');
+			var $input = $(this);
 			var action = $form.attr('action');
+			params = {};
+			params[$input.attr('name')] = $input.val();
 			$.post(
 				action,
-				$form.serialize(),
+				params,
 				function(result){
 					Messenger().post(result);
 					$('#attendees').load(location.href + ' #attendees > *');

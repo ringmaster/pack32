@@ -958,7 +958,13 @@ $app->route('profile_post', '/profile', function(Request $request, Response $res
 })->post();
 
 $app->route('rsvp_post', '/rsvp/:id', function(Response $response, Request $request, Pack32 $app) {
+	$app->require_login();
 	$rsvps = $_POST['rsvp'];
+	if($response['user']['admin_level'] == 0) {
+		$usergroup_ids = $app->db()->col('SELECT id FROM usergroup WHERE usergroup.account_id = :account_id', ['account_id' => $response['user']['account_id']]);
+		$rsvps = array_intersect_key($rsvps, array_combine($usergroup_ids, $usergroup_ids));
+	}
+
 	foreach($rsvps as $member_id => $rsvp) {
 		$app->db()->query(
 			'INSERT INTO rsvps (event_id, usergroup_id, is_rsvp) VALUES (:event_id, :usergroup_id, :is_rsvp) ON DUPLICATE KEY UPDATE is_rsvp = :is_rsvp',
