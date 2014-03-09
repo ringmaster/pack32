@@ -77,7 +77,7 @@ function image_resize($dimension, $source, $extension) {
 
 			case 2: // horizontal flip
 
-				$this->ImageFlip($destinationImage);
+				image_flip($destinationImage);
 
 				break;
 
@@ -89,7 +89,7 @@ function image_resize($dimension, $source, $extension) {
 
 			case 4: // vertical flip
 
-				$this->ImageFlip($destinationImage);
+				image_flip($destinationImage);
 
 				break;
 
@@ -109,7 +109,7 @@ function image_resize($dimension, $source, $extension) {
 
 			case 7: // horizontal flip + 90 rotate right
 
-				$this->ImageFlip($destinationImage);
+				image_flip($destinationImage);
 
 				$destinationImage = imagerotate($destinationImage, -90, -1);
 
@@ -151,7 +151,7 @@ function image_resize($dimension, $source, $extension) {
  *
  */
 
-function ImageFlip(&$image, $x = 0, $y = 0, $width = null, $height = null) {
+function image_flip(&$image, $x = 0, $y = 0, $width = null, $height = null) {
 
 	if ($width < 1) {
 		$width = imagesx($image);
