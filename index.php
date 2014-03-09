@@ -4,6 +4,10 @@ namespace Microsite;
 
 use Microsite\DB\PDO\DB;
 use Microsite\Renderers\JSONRenderer;
+use Microsite\Renderers\MarkdownRenderer;
+
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 
 include 'microsite.phar';
 
@@ -83,6 +87,8 @@ $app->template_dirs = [
 include 'includes/auth.php';
 include 'includes/s3.php';
 include 'includes/image.php';
+include 'includes/class.phpmailer.php';
+include 'includes/class.smtp.php';
 
 Config::load(__DIR__ . '/config.php');
 Config::middleware($app);
@@ -621,6 +627,7 @@ $app->route('add_new', '/admin/new', function(Request $request, Response $respon
 		'event_on' => isset($_GET['etime']) ? $_GET['etime'] : time(),
 		'groups' => $user_groups ? $user_groups : [],
 		'status' => 2,
+		'has_rsvp' => 0,
 	];
 
 	$response['start_date'] = date('Y-m-d', isset($_GET['etime']) ? $_GET['etime'] : time());
@@ -698,7 +705,7 @@ function add_content(Request $request, Response $response, Pack32 $app) {
 $app->route('add_new_post', '/admin/new', function(Request $request, Response $response, Pack32 $app) {
 	$app->require_editing();
 	$record = add_content($request, $response, $app);
-	header('location: ' . $_SERVER['HTTP_REFERER']);
+	header('location: ' . $app->get_url('event', $record));
 	$app->add_message('Added content.', 'success');
 	return 'ok';
 })->post();
@@ -982,6 +989,197 @@ $app->route('rsvp_post', '/rsvp/:id', function(Response $response, Request $requ
 	$response->set_renderer(JSONRenderer::create('', $app));
 	return $response->render();
 })->post();
+
+$app->route('email_poll', '/email/poll', function(Response $response, Request $request, Pack32 $app) {
+	$mbox = imap_open(Config::get('imap_server'), Config::get('imap_username'), Config::get('imap_password'));
+
+	$MC = imap_check($mbox);
+
+	header('content-type:text/plain');
+	ini_set('html_errors', false);
+
+	echo "Number of messages: {$MC->Nmsgs}\n";
+
+	if($MC->Nmsgs > 0) {
+		$overviews = imap_fetch_overview($mbox,"1:{$MC->Nmsgs}",0);
+		imap_headers($mbox);
+		$processed = [];
+		foreach ($overviews as $overview) {
+			if(isset($processed[$overview->message_id])) {
+				// A message with this ID has already been processed.  Delete it.
+				imap_delete($mbox, $overview->uid, FT_UID);
+				continue;
+			}
+			$processed[$overview->message_id] = true;
+
+			$header = imap_rfc822_parse_headers( imap_fetchheader( $mbox, $overview->uid, FT_UID));
+			$structure = imap_fetchstructure($mbox, $overview->uid, FT_UID);
+
+			$from = reset($header->from);
+
+			//var_dump($header, $structure, $from);
+			echo "\nFROM: {$from->personal}\nSUBJECT: {$header->subject}\nMESSAGE ID: {$overview->message_id}\n";
+
+			// Who is this email from?
+			$from_name = $from->personal;
+			$from_email = $from->mailbox . '@' . $from->host;
+
+			// Was this email from a known user?
+			if($from_user = $app->db()->row('SELECT * FROM users WHERE email LIKE :email', ['email' => $from_email])) {
+				echo "KNOWN USER: {$from_user->username}\n";
+
+				// Construct a subject
+				$subject = '[' . Config::get('mail_prefix') . ']';
+				if(isset($subject_prefix) && $subject_prefix != Config::get('mail_prefix')) {
+					$subject .= '[' . $subject_prefix . ']';
+				}
+				$subject .= ' ' . $overview->subject;
+
+				// Construct content
+				if($structure->type == 1) {
+					$content = imap_fetchbody($mbox, $overview->uid, "1", FT_UID);
+				}
+				else {
+					$content = imap_body($mbox, $overview->uid, FT_UID);
+				}
+
+				// Process content for markdown
+				$response->set_renderer(MarkdownRenderer::create('', $app));
+				$content = strip_tags($content);
+				$content = $response->render($content);
+
+				$send_to = [];
+				$reply_to = [];
+
+				// Is the TO address a valid address to send emails to the site?
+				foreach($header->to as $to) {
+					$email_slug = strtolower(preg_replace('#[^a-z0-9\-]+#i', '', $to->mailbox));
+
+					// Check group names
+					if($group = $app->db()->row('SELECT * FROM groups WHERE REPLACE(name, " ", "") LIKE :group_name', ['group_name' => $email_slug])) {
+						// Send this message to the named group
+						echo "NAMED GROUP: {$group->name}\n";
+						$subject_prefix = $group->name;
+						$send_to_tmp = $app->db()->results(
+							'SELECT DISTINCT username, email FROM users
+							INNER JOIN usergroup ug ON ug.account_id = users.account_id
+							INNER JOIN groups g ON ug.group_id = g.id OR g.is_global = 1
+							WHERE g.id = :group_id AND users.subscribed = 1',
+							['group_id' => $group->id]
+						);
+						foreach($send_to_tmp as $e) {
+							$send_to[$e->email] = $e->username;
+						}
+						$reply_to[] = $email_slug . '@' . Config::get('mailbox_domain');
+					}
+
+					// Check event slugs
+					elseif($event = $app->db()->row('SELECT * FROM content WHERE slug LIKE :email_slug', ['email_slug' => $email_slug])) {
+						// Send this message to the groups associated with the event
+						echo "NAMED EVENT: {$event->title}\n";
+						$subject_prefix = $event->title;
+						$send_to_tmp = $app->db()->results(
+							'SELECT DISTINCT u.username, u.email, u.subscribed FROM users u
+							INNER JOIN usergroup ug ON ug.account_id = u.account_id
+							INNER JOIN groups g ON g.id = ug.group_id OR g.is_global = 1
+							INNER JOIN eventgroup eg ON eg.group_id = g.id
+							INNER JOIN content c ON c.id = eg.event_id
+							LEFT JOIN rsvps r ON r.event_id = c.id AND r.usergroup_id = ug.id
+							WHERE c.slug = :event_slug
+							AND u.subscribed = 1
+							AND (r.is_rsvp IN(2,0) OR ISNULL(r.id))',
+							['event_slug' => $event->slug]
+						);
+						foreach($send_to_tmp as $e) {
+							$send_to[$e->email] = $e->username;
+						}
+						$reply_to[] = $email_slug . '@' . Config::get('mailbox_domain');
+
+						// Add the messge to the responses to the event
+						$sql = 'INSERT INTO responses (content_id, user_id, content, added_on, title, email_id) VALUES (:content_id, :user_id, :content, :added_on, :title, :email_id);';
+						$app->db()->query($sql, [
+							'content_id' => $event->id,
+							'user_id' => $from_user->id,
+							'content' => $content,
+							'added_on' => time(),
+							'title' => $overview->subject,
+							'email_id' => $overview->message_id,
+						]);
+					}
+				}
+
+				foreach($reply_to as $to) {
+					echo "REPLY TO: {$to}\n";
+				}
+				// @todo construct a proper reply_to from multiple addresses
+				$reply_to = reset($reply_to);
+
+				// For every intended recipient, send the message to them
+				foreach($send_to as $to_address => $to_name) {
+					echo "\tTO: {$to_name} <{$to_address}>\n";
+					send_message($to_address, $to_name, $reply_to, $from_name, $subject, $content);
+				}
+
+				// If there weren't any recipients, dump the message header
+				if(!count($send_to)) {
+					var_dump($header);
+				}
+				// Otherwise, delete the message, it was processed
+				else {
+					imap_delete($mbox, $overview->uid, FT_UID);
+				}
+
+			}
+			else {
+				// This message wasn't from a known user.  Delete it.
+				imap_delete($mbox, $overview->uid, FT_UID);
+			}
+
+
+		}
+	}
+
+	imap_expunge($mbox);
+	imap_close($mbox);
+
+});
+
+function send_message($to, $to_name, $from, $from_name, $subject, $content) {
+
+	var_dump(func_get_args());
+	return;
+
+	$mail = new \PHPMailer;
+
+	$mail->isSMTP();
+	$mail->Host = Config::get('smtp_server');
+	$mail->SMTPAuth = true;
+	$mail->Username = Config::get('smtp_username');
+	$mail->Password = Config::get('smtp_password');
+	$mail->SMTPSecure = Config::get('smtp_encryption');
+	$mail->Port = Config::get('smtp_port');
+
+	$mail->From = $from;
+	$mail->FromName = $from_name;
+	$mail->addAddress($to, $to_name);
+	$mail->addReplyTo($from, $from_name);
+
+	$mail->WordWrap = 50;
+	$mail->isHTML(true);
+
+	$mail->Subject = $subject;
+	$mail->Body    = $content;
+	$mail->AltBody = $content;
+
+	if(!$mail->send()) {
+		return $mail->ErrorInfo;
+	}
+	return true;
+}
+
+$app->route('email_testsend', '/email/testsend', function(Response $response, Request $request, Pack32 $app) {
+	echo send_message('epithet@gmail.com', 'Owen Winkler', 'bear@cubpack32.com', 'Cub Pack 32 Website', '[Cub Pack 32][Bear] A bear event', "This is the message that is being sent.");
+});
 
 //include 'includes/usermap.php';
 
