@@ -990,6 +990,14 @@ $app->route('rsvp_post', '/rsvp/:id', function(Response $response, Request $requ
 	return $response->render();
 })->post();
 
+function guid() {
+	if( function_exists('com_create_guid') === true ) {
+		return trim(com_create_guid(), '{}');
+	}
+
+	return sprintf('%04X%04X-%04X-%04X-%04X-%04X%04X%04X', mt_rand(0, 65535), mt_rand(0, 65535), mt_rand(0, 65535), mt_rand(16384, 20479), mt_rand(32768, 49151), mt_rand(0, 65535), mt_rand(0, 65535), mt_rand(0, 65535));
+}
+
 $app->route('email_poll', '/email/poll', function(Response $response, Request $request, Pack32 $app) {
 	$mbox = imap_open(Config::get('imap_server'), Config::get('imap_username'), Config::get('imap_password'));
 
@@ -1001,18 +1009,18 @@ $app->route('email_poll', '/email/poll', function(Response $response, Request $r
 	echo "Number of messages: {$MC->Nmsgs}\n";
 
 	if($MC->Nmsgs > 0) {
-		$overviews = imap_fetch_overview($mbox,"1:{$MC->Nmsgs}",0);
+		$overviews = imap_fetch_overview($mbox, "1:{$MC->Nmsgs}", 0);
 		imap_headers($mbox);
 		$processed = [];
 		foreach ($overviews as $overview) {
-			if(isset($processed[$overview->message_id])) {
+			if( isset($processed[$overview->message_id]) ) {
 				// A message with this ID has already been processed.  Delete it.
 				imap_delete($mbox, $overview->uid, FT_UID);
 				continue;
 			}
 			$processed[$overview->message_id] = true;
 
-			$header = imap_rfc822_parse_headers( imap_fetchheader( $mbox, $overview->uid, FT_UID));
+			$header = imap_rfc822_parse_headers(imap_fetchheader($mbox, $overview->uid, FT_UID));
 			$structure = imap_fetchstructure($mbox, $overview->uid, FT_UID);
 
 			$from = reset($header->from);
@@ -1025,129 +1033,172 @@ $app->route('email_poll', '/email/poll', function(Response $response, Request $r
 			$from_email = $from->mailbox . '@' . $from->host;
 
 			// Was this email from a known user?
-			if($from_user = $app->db()->row('SELECT * FROM users WHERE email LIKE :email', ['email' => $from_email])) {
+			if( $from_user = $app->db()->row('SELECT * FROM users WHERE email LIKE :email', ['email' => $from_email]) ) {
 				echo "KNOWN USER: {$from_user->username}\n";
+				var_dump($overview);
 
 				// Construct a subject
 				$subject = '[' . Config::get('mail_prefix') . ']';
-				if(isset($subject_prefix) && $subject_prefix != Config::get('mail_prefix')) {
+				if( isset($subject_prefix) && $subject_prefix != Config::get('mail_prefix') ) {
 					$subject .= '[' . $subject_prefix . ']';
 				}
-				$subject .= ' ' . $overview->subject;
+				$subject_brackets = explode(']', $overview->subject);
+				$strip_subject = end($subject_brackets);
+				$subject .= ' ' . $strip_subject;
 
 				// Construct content
-				if($structure->type == 1) {
+				if( $structure->type == 1 ) {
 					$content = imap_fetchbody($mbox, $overview->uid, "1", FT_UID);
-				}
-				else {
+				} else {
 					$content = imap_body($mbox, $overview->uid, FT_UID);
 				}
 
+				echo "----------\n$content\n----------\n";
+
 				// Process content for markdown
 				$response->set_renderer(MarkdownRenderer::create('', $app));
-				$content = strip_tags($content);
-				$content = $response->render($content);
+				$html_content = strip_tags($content);
+				$html_content = $response->render($html_content);
 
-				$send_to = [];
-				$reply_to = [];
+				// Does the to address indicate an existing thread?
+				$thread_id = false;
+				$grouped_slug = [];
+				$parent_ids = '';
+				foreach ($header->to as $to) {
+					$email_slug = strtolower(preg_replace('#[^a-z0-9\-\+]+#i', '', $to->mailbox));
+					$grouped_slug[] = $email_slug;
 
-				// Is the TO address a valid address to send emails to the site?
-				foreach($header->to as $to) {
-					$email_slug = strtolower(preg_replace('#[^a-z0-9\-]+#i', '', $to->mailbox));
+					// Check thread names
+					if( $thread = $app->db()->row('SELECT * FROM thread WHERE thread_token LIKE :thread_token', ['thread_token' => $email_slug]) ) {
+						$thread_id = $thread->id;
+						$subject = 'Re: ' . $subject;
 
-					// Check group names
-					if($group = $app->db()->row('SELECT * FROM groups WHERE REPLACE(name, " ", "") LIKE :group_name', ['group_name' => $email_slug])) {
-						// Send this message to the named group
-						echo "NAMED GROUP: {$group->name}\n";
-						$subject_prefix = $group->name;
-						$send_to_tmp = $app->db()->results(
-							'SELECT DISTINCT username, email FROM users
-							INNER JOIN usergroup ug ON ug.account_id = users.account_id
-							INNER JOIN groups g ON ug.group_id = g.id OR g.is_global = 1
-							WHERE g.id = :group_id AND users.subscribed = 1',
-							['group_id' => $group->id]
-						);
-						foreach($send_to_tmp as $e) {
-							$send_to[$e->email] = $e->username;
+						// Find the parent message
+						if(isset($overview->references)) {
+							$parent_ids = $overview->references;
 						}
-						$reply_to[] = $email_slug . '@' . Config::get('mailbox_domain');
-					}
 
-					// Check event slugs
-					elseif($event = $app->db()->row('SELECT * FROM content WHERE slug LIKE :email_slug', ['email_slug' => $email_slug])) {
-						// Send this message to the groups associated with the event
-						echo "NAMED EVENT: {$event->title}\n";
-						$subject_prefix = $event->title;
-						$send_to_tmp = $app->db()->results(
-							'SELECT DISTINCT u.username, u.email, u.subscribed FROM users u
-							INNER JOIN usergroup ug ON ug.account_id = u.account_id
-							INNER JOIN groups g ON g.id = ug.group_id OR g.is_global = 1
-							INNER JOIN eventgroup eg ON eg.group_id = g.id
-							INNER JOIN content c ON c.id = eg.event_id
-							LEFT JOIN rsvps r ON r.event_id = c.id AND r.usergroup_id = ug.id
-							WHERE c.slug = :event_slug
-							AND u.subscribed = 1
-							AND (r.is_rsvp IN(2,0) OR ISNULL(r.id))',
-							['event_slug' => $event->slug]
-						);
-						foreach($send_to_tmp as $e) {
-							$send_to[$e->email] = $e->username;
-						}
-						$reply_to[] = $email_slug . '@' . Config::get('mailbox_domain');
-
-						// Add the messge to the responses to the event
-						$sql = 'INSERT INTO responses (content_id, user_id, content, added_on, title, email_id) VALUES (:content_id, :user_id, :content, :added_on, :title, :email_id);';
-						$app->db()->query($sql, [
-							'content_id' => $event->id,
-							'user_id' => $from_user->id,
-							'content' => $content,
-							'added_on' => time(),
-							'title' => $overview->subject,
-							'email_id' => $overview->message_id,
-						]);
 					}
 				}
 
-				foreach($reply_to as $to) {
-					echo "REPLY TO: {$to}\n";
-				}
-				// @todo construct a proper reply_to from multiple addresses
-				$reply_to = reset($reply_to);
+				// If no pre-existing thread, create one
+				if( !$thread_id ) {
+					$tcount = 0;
+					do {
+						$new_thread_token = implode('_', $grouped_slug) . '+' . date('Ymd') . sprintf('%02d', $tcount);
+						$tcount++;
+					} while($app->db()->val('SELECT id FROM thread WHERE thread_token = :token', ['token' => $new_thread_token]));
+					$app->db()->query(
+						'INSERT INTO thread (thread_token, msg_id) VALUES (:thread_token, :msg_id)',
+						['thread_token' => $new_thread_token, 'msg_id' => $overview->message_id, 'title' => $subject]
+					);
+					$thread_id = $app->db()->lastInsertId();
 
-				// For every intended recipient, send the message to them
-				foreach($send_to as $to_address => $to_name) {
-					echo "\tTO: {$to_name} <{$to_address}>\n";
-					send_message($to_address, $to_name, $reply_to, $from_name, $subject, $content);
+					// Add the targeted groups to the thread
+					foreach ($header->to as $to) {
+						$email_slug = strtolower(preg_replace('#[^a-z0-9\-]+#i', '', $to->mailbox));
+
+						// Check group names
+						if( $group = $app->db()->row('SELECT * FROM groups WHERE REPLACE(name, " ", "") LIKE :group_name', ['group_name' => $email_slug]) ) {
+							$app->db()->query(
+								'INSERT INTO threadgroup (thread_id, group_id) VALUES (:thread_id, :group_id)',
+								['thread_id' => $thread_id, 'group_id' => $group->id]
+							);
+						}
+					}
 				}
 
-				// If there weren't any recipients, dump the message header
-				if(!count($send_to)) {
-					var_dump($header);
-				}
-				// Otherwise, delete the message, it was processed
-				else {
-					imap_delete($mbox, $overview->uid, FT_UID);
-				}
-
+				// Put this message in the database
+				$new_message_id = $overview->message_id;
+				//'<' . guid() . '@' . Config::get('mailbox_domain') . '>';
+				$app->db()->query(
+					'INSERT INTO messages (title, content, html_content, from_id, thread_id, message_id, parent_ids, received_on)
+					VALUES (:title, :content, :html_content, :from_id, :thread_id, :message_id, :parent_ids, :received_on)',
+					[
+						'title' => $subject,
+						'content' => $content,
+						'html_content' => $html_content,
+						'from_id' => $from_user->id,
+						'thread_id' => $thread_id,
+						'message_id' => $new_message_id,
+						'parent_ids' => $parent_ids,
+						'received_on' => time(),
+					]
+				);
 			}
-			else {
-				// This message wasn't from a known user.  Delete it.
-				imap_delete($mbox, $overview->uid, FT_UID);
-			}
 
+			// Delete the message, it was either processed into the queue or wasn't from a known user
+			imap_delete($mbox, $overview->uid, FT_UID);
 
 		}
+
+		imap_expunge($mbox);
+		imap_close($mbox);
 	}
 
-	imap_expunge($mbox);
-	imap_close($mbox);
+	// Process unqueued messages
+	$sql = <<< SQL_UNQUEUED
+SELECT DISTINCT
+  messages.id as message_id,
+  users.id as user_id
+FROM messages
+  INNER JOIN threadgroup
+    ON messages.thread_id = threadgroup.thread_id
+  INNER JOIN usergroup
+    ON threadgroup.group_id = usergroup.group_id
+  INNER JOIN users
+    ON usergroup.account_id = users.account_id
+WHERE users.subscribed = 1 AND messages.queued = 0
+SQL_UNQUEUED;
+
+	$unqueueds = $app->db()->results($sql);
+	$nowish = time();
+	foreach ($unqueueds as $unqueued) {
+		$app->db()->query(
+			'INSERT INTO sent (message_id, user_to_id, queued_on) VALUES (:message_id, :user_id, :queued_on)',
+			['message_id' => $unqueued->message_id, 'user_id' => $unqueued->user_id, 'queued_on' => $nowish]
+		);
+	}
+	$app->db()->query('UPDATE messages SET queued = 1');
+
+	// Send queued messages
+	$sql = <<< SQL_MESSAGES
+SELECT
+  u.username, u.email,
+  m.title, m.content, m.html_content, m.message_id, m.parent_ids,
+  u1.username AS from_username, u1.email AS from_email,
+  t.thread_token
+  FROM sent s
+  INNER JOIN users u ON u.id = s.user_to_id
+  INNER JOIN messages m ON m.id = s.message_id
+  INNER JOIN users u1 ON u1.id = m.from_id
+  INNER JOIN thread t ON t.id = m.thread_id
+WHERE ISNULL (sent_on)
+  ORDER BY queued_on ASC LIMIT 10
+SQL_MESSAGES;
+
+	$messages = $app->db()->results($sql);
+	foreach($messages as $message) {
+		send_message(
+			$message->email,
+			$message->username,
+			$message->thread_token . '@' . Config::get('mailbox_domain'),
+			$message->from_username,
+			$message->title,
+			$message->content,
+			$message->html_content,
+			$message->message_id,
+			$message->parent_ids
+		);
+		$app->db()->query('UPDATE sent SET sent_on = :nowish', ['nowish' => time()]);
+	}
 
 });
 
-function send_message($to, $to_name, $from, $from_name, $subject, $content) {
+function send_message($to, $to_name, $from, $from_name, $subject, $content, $html_content, $message_id, $parent_id) {
 
-	var_dump(func_get_args());
-	return;
+//	var_dump(func_get_args());
+//	return;
 
 	$mail = new \PHPMailer;
 
@@ -1162,14 +1213,20 @@ function send_message($to, $to_name, $from, $from_name, $subject, $content) {
 	$mail->From = $from;
 	$mail->FromName = $from_name;
 	$mail->addAddress($to, $to_name);
-	$mail->addReplyTo($from, $from_name);
+	$mail->addReplyTo($from, Config::get('mail_prefix'));
 
 	$mail->WordWrap = 50;
 	$mail->isHTML(true);
 
 	$mail->Subject = $subject;
-	$mail->Body    = $content;
+	$mail->Body    = $html_content;
 	$mail->AltBody = $content;
+	$mail->MessageID = $message_id;
+	if(isset($parent_id)) {
+		$mail->addCustomHeader('References', $parent_id);
+	}
+
+	$mail->SMTPDebug  = 1;
 
 	if(!$mail->send()) {
 		return $mail->ErrorInfo;
@@ -1178,7 +1235,7 @@ function send_message($to, $to_name, $from, $from_name, $subject, $content) {
 }
 
 $app->route('email_testsend', '/email/testsend', function(Response $response, Request $request, Pack32 $app) {
-	echo send_message('epithet@gmail.com', 'Owen Winkler', 'bear@cubpack32.com', 'Cub Pack 32 Website', '[Cub Pack 32][Bear] A bear event', "This is the message that is being sent.");
+	//echo send_message('epithet@gmail.com', 'Owen Winkler', 'bear@cubpack32.com', 'Cub Pack 32 Website', '[Cub Pack 32][Bear] A bear event', "This is the message that is being sent.");
 });
 
 //include 'includes/usermap.php';
