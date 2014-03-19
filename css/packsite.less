@@ -114,6 +114,25 @@ small {
 	}
 }
 
+.inline_login {
+	font-weight: bold;
+	background: url(/theme/pack32/img/menu_btn_left.png) top left;
+	display: inline-block;
+	height: 38px;
+	padding: 0px 0px 0px 10px;
+	zoom: 1;
+	a {
+		background: url(/theme/pack32/img/menu_btn_right.png) top right;
+		display: inline-block;
+		height: 38px;
+		margin-top: 0px;
+		padding: 10px 10px 0 0;
+		-moz-box-sizing: border-box;
+		box-sizing: border-box;
+		text-shadow: 1px 1px 1px black;
+	}
+}
+
 #content {
 	margin: 0px 0px;
 	.clearfix();
@@ -223,6 +242,11 @@ small {
 		}
 	}
 }
+
+#content.photos article {
+	margin-bottom: 30px;
+}
+
 
 #upcoming ol {
 	list-style: none;
@@ -502,8 +526,20 @@ small {
 	background: linear-gradient(to right,  rgba(0,0,0,0.3) 0%,rgba(0,0,0,0) 10%,rgba(0,0,0,0) 90%,rgba(0,0,0,0.3) 100%); /* W3C */
 	filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#4d000000', endColorstr='#4d000000',GradientType=1 ); /* IE6-9 */
 
+	-webkit-overflow-scrolling: touch;
+
 	&.empty {
 		height: 0px;
+	}
+	&.small {
+		height: 150px;
+		li {
+			margin-left: 1em;
+			img {
+				height: 100px;
+				padding: 3px;
+			}
+		}
 	}
 	ul {
 		list-style: none;
@@ -521,6 +557,11 @@ small {
 			background: rgba(64,0,0,1);
 		}
 	}
+}
+
+// For lightbox:
+body .mfp-img {
+	max-height: 100% !important;
 }
 
 table.rsvp {

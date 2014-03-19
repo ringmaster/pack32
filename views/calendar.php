@@ -20,7 +20,7 @@
 		<a class="cal_link" href="<?= $_app->get_url('calendar_date', ['month' => $prev_month->format('m'), 'year' => $prev_month->format('Y')]) ?>?groups=<?= implode(',', $groups_to_get) ?>">&laquo;<?= $prev_month->format('F Y') ?></a>
 		<a class="cal_link" href="<?= $_app->get_url('calendar_date', ['month' => $next_month->format('m'), 'year' => $next_month->format('Y')]) ?>?groups=<?= implode(',', $groups_to_get) ?>"><?= $next_month->format('F Y') ?>&raquo;</a>
 		<span id="group_picker">
-			<label for="pick_group">Show Groups:</label>
+			<label id="label_pick_group" for="pick_group">Show Groups:</label>
 			<select multiple id="pick_group" style="min-width: 50%;">
 				<?php foreach($groups as $group): ?>
 					<option value="<?= $group['id'] ?>" <?= $group['selected'] ?>><?= $group['name'] ?></option>
@@ -100,6 +100,7 @@
 				console.log(c);
 				var data = {groups: c.val};
 				$('#calendar').load(location.origin + location.pathname + ' #calendar > *', data);
+				$('#label_pick_group').on('click', function(){location.href=location.origin+location.pathname+'?groups='+c.val;});
 				$('.cal_link').each(function(){
 					$this = $(this);
 					$this.attr('href', $this.attr('href').replace(/\?.+$|$/, '?groups=' + c.val.join(',') ));

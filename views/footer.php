@@ -79,6 +79,21 @@
 
 		$('img').unveil();
 
+		$('.attachments').each(function(){
+			$(this).magnificPopup({
+				delegate: '.orig_link',
+				type: 'image',
+				gallery: {
+					enabled: true
+				},
+				zoom: {
+					enabled: true,
+					duration: 800,
+					easing: 'ease-in-out'
+				}
+			});
+		});
+
 		<?php if($_app->can_edit()): ?>
 		$('.delete').on('click', function(ev){
 			var href = $(this).attr('href');
@@ -192,6 +207,8 @@
 		});
 	}
 </script>
+<script src="//static.getclicky.com/js" type="text/javascript"></script>
+<script type="text/javascript">try{ clicky.init(100681662); }catch(e){}</script>
 </div>
 </body>
 </html>

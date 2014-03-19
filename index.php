@@ -106,6 +106,10 @@ $app->middleware('menu', function(Response $response, Pack32 $app) {
 		[
 			'href' => '/documents',
 			'title' => 'Documents',
+		],
+		[
+			'href' => '/photos',
+			'title' => 'Photos',
 		]
 	];
 	$response['submenu'] = [];
@@ -588,6 +592,40 @@ ORDER BY u.role ASC, u.name ASC;
 	header('location: /');
 	return 'not found';
 });
+
+
+$app->route('photos', '/photos', function(Request $request, Response $response, Pack32 $app){
+	$response['title'] = 'Photos';
+	if($app->loggedin()) {
+		$response['attachments'] = $app->db()->results('SELECT a.*, c.title, c.event_on, c.slug FROM attachments a LEFT JOIN content c on c.id = a.event_id WHERE (active = 1 OR c.user_id = :user_id OR :admin_level > 0) ORDER BY c.event_on DESC', [
+			'user_id' => $response['user']['id'],
+			'admin_level' => $response['user']['admin_level']
+		]);
+		$events = [];
+		foreach ($response['attachments'] as &$attachment) {
+			if (
+				$attachment['user_id'] == $response['user']['id']
+				|| $response['user']['admin_level'] > 0
+			) {
+				$attachment['deactivate'] = true;
+			}
+			else {
+				$attachment['deactivate'] = false;
+			}
+			$events[$attachment['event_id']][$attachment['id']] = $attachment;
+			$event_data[$attachment['event_id']] = ['title' => $attachment['title'], 'event_on' => $attachment['event_on'], 'slug' => $attachment['slug']];
+		}
+		$response['events'] = $events;
+		$response['event_data'] = $event_data;
+		//var_dump($events);die();
+		return $response->render('photos_loggedin.php');
+	}
+	else {
+		return $response->render('photos.php');
+	}
+
+});
+
 
 $app->route('deactivate_attachment', '/admin/deactivate/:id', function(Request $request, Response $response, Pack32 $app) {
 	if($attachment = $app->db()->results('SELECT * FROM attachments WHERE id = :id AND (user_id = :user_id OR :admin_level > 0) ORDER BY added_on DESC, id DESC', ['id' => $request['id'], 'user_id' => $response['user']['id'], 'admin_level' => $response['user']['admin_level'] ])) {

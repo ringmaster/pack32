@@ -10,6 +10,8 @@
 	<link rel="stylesheet" href="/js/messenger/css/messenger-theme-future.css" type="text/css">
 	<link rel="stylesheet" href="/js/messenger/css/messenger-spinner.css" type="text/css">
 	<link rel="stylesheet" href="http://code.jquery.com/ui/1.10.3/themes/smoothness/jquery-ui.css" type="text/css">
+	<link rel="stylesheet" href="/js/magnific-popup/magnific-popup.css" type="text/css">
+
 	<link href="//netdna.bootstrapcdn.com/font-awesome/3.2.1/css/font-awesome.css" rel="stylesheet">
 	<meta name="viewport" content="width=device-width">
 	<meta charset="utf-8">
@@ -22,6 +24,7 @@
 	<script src="https://login.persona.org/include.js"></script>
 	<script src="/js/messenger/js/messenger.min.js"></script>
 	<script src="/js/messenger/js/messenger-theme-future.js"></script>
+	<script src="/js/magnific-popup/jquery.magnific-popup.min.js"></script>
 </head>
 <body>
 <div class="wrapper">

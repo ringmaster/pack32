@@ -67,7 +67,7 @@
 												</small></span></a>
 									<?php } ?>
 								<?php endif; ?>
-								<a href="<?= $_app->get_url('get_file', $photo) ?>"><img
+								<a href="<?= $_app->get_url('get_file', $photo) ?>" class="orig_link"><img
 										src="<?= $_app->get_url('get_thumbnail', $photo) ?>"></a></li>
 						<?php endforeach; ?>
 					</ul>
