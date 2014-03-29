@@ -320,7 +320,7 @@ $fetch_events = function(Response $response, Request $request, Pack32 $app) {
 };
 
 $calendar = function(Request $request, Response $response, Pack32 $app){
-	$response['title'] = 'Calendar - ' . Config::get('org_name') . ' - Pickering Valley';
+	$response['title'] = 'Calendar - ' . Config::get('org_name');
 
 	$response['groups'] = $app->db()->results('SELECT * FROM groups ORDER BY name ASC');
 	foreach($response['groups'] as &$group) {
@@ -626,6 +626,112 @@ $app->route('photos', '/photos', function(Request $request, Response $response, 
 
 });
 
+$app->route('photos archive', '/photos/zip', function(Request $request, Response $response, Pack32 $app){
+	$response['title'] = 'Photos';
+	if($app->loggedin()) {
+		set_time_limit(0);
+		$start = microtime(true);
+		$attachments = $app->db()->results('SELECT a.*, c.title, c.event_on, c.slug FROM attachments a LEFT JOIN content c on c.id = a.event_id WHERE active = 1 ORDER BY c.event_on DESC');
+
+		$zip = new \ZipArchive();
+		$zip_file = __DIR__ . '/data/photos.zip';
+
+		if(file_exists($zip_file)) {
+			if ($zip->open($zip_file) !== TRUE) {
+				exit("cannot open <$zip_file>\n");
+			}
+		}
+		else {
+			if ($zip->open($zip_file, \ZipArchive::CREATE) !== TRUE) {
+				exit("cannot open <$zip_file>\n");
+			}
+		}
+
+		$files = [];
+		for($i = 0; $i < $zip->numFiles; $i++) {
+			$files[$i] = $zip->getNameIndex($i);
+		}
+
+		$s3 = new \S3(Config::get('aws_key'), Config::get('aws_secret'));
+
+		$changed = false;
+		$bail = false;
+
+		foreach ($attachments as $attachment) {
+			list(,$url) = explode('/', $attachment['remote_url'], 2);
+			$ext = substr($url, strrpos($url, '.'));
+			$photo_file = date('Ymd', $attachment['event_on']) . '_' . preg_replace('#[^a-z0-9\.]+#i', '_', $attachment['title']) . '_' . sprintf('%04d', $attachment['id']) . $ext;
+
+			if(!in_array($photo_file, $files) && !$zip->locateName($photo_file, \ZipArchive::FL_NOCASE|\ZipArchive::FL_NODIR)) {
+				$filedata = $s3->getObject(
+					Config::get('s3_bucket'),
+					$url,
+					false
+				);
+
+				$imgdata = $filedata->body;
+				$img_info = getimagesizefromstring($imgdata);
+				$width = $img_info[0];
+				$height = $img_info[1];
+				if($width > 1920 || $height > 1920) {
+					$sourceImage = imagecreatefromstring($imgdata);
+
+					// find the largest dimension of the image
+					// then calculate the resize perc based upon that dimension
+					$percentage = ($width >= $height) ? 100 / $width * 1920 : 100 / $height * 1920;
+
+					// define new width / height
+					$newWidth = $width / 100 * $percentage;
+					$newHeight = $height / 100 * $percentage;
+
+					// create a new image
+					$destinationImage = imagecreatetruecolor($newWidth, $newHeight);
+
+					// copy resampled
+					imagecopyresampled($destinationImage, $sourceImage, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+
+					// create the new jpeg
+					ob_start();
+					imagejpeg($destinationImage, null, 100);
+					$imgdata = ob_get_clean();
+				}
+
+				$zip->addFromString($photo_file, $imgdata);
+				$changed = true;
+			}
+			if(microtime(true) - $start > 20) {
+				// Bail out for time!
+				$bail = true;
+				break;
+			}
+		}
+
+		if($changed) {
+			$zip->setArchiveComment('This archive was generated on ' . date('M j, Y') . ' at ' . date('h:i:s a') . ' from the photos at ' . Config::get('org_name') . ' by ' . $response['user']['username']);
+			$zip->close();
+		}
+
+		if($bail) {
+			header('location: ' . $_SERVER['REQUEST_URI']);
+			exit();
+		}
+
+		while(ob_get_level()) {
+			ob_end_clean();
+		}
+		//header("X-Sendfile: $zip_file");
+		header('content-type: application/zip');
+		header('content-disposition: attachment;filename=' . strtolower(preg_replace('#[^a-z0-9\.]+#i', '_', Config::get('org_name')) . '_photos.zip'));
+		//echo $zip_file;
+		readfile($zip_file);
+		exit();
+	}
+	else {
+		return $response->render('photos.php');
+	}
+
+});
+
 
 $app->route('deactivate_attachment', '/admin/deactivate/:id', function(Request $request, Response $response, Pack32 $app) {
 	if($attachment = $app->db()->results('SELECT * FROM attachments WHERE id = :id AND (user_id = :user_id OR :admin_level > 0) ORDER BY added_on DESC, id DESC', ['id' => $request['id'], 'user_id' => $response['user']['id'], 'admin_level' => $response['user']['admin_level'] ])) {
@@ -792,13 +898,8 @@ $app->route('upload_photo', '/admin/upload/photo', function(Request $request, Re
 	}
 });
 
-
-$app->route('attach_photo', '/admin/attach/:event_id', function(Request $request, Response $response, Pack32 $app) {
-	$app->require_login();
-
-	$event_id = $request['event_id'];
-
-	$_FILES['file']['type'] = strtolower($_FILES['file']['type']);
+function process_event_file($event_id, $file_ary, $user, Pack32 $app) {
+	$file_ary['type'] = strtolower($file_ary['type']);
 
 	$allowed_mimes = [
 		'image/png' => 'png',
@@ -808,54 +909,52 @@ $app->route('attach_photo', '/admin/attach/:event_id', function(Request $request
 		'image/pjpeg' => 'jpg',
 	];
 
-	if(!in_array($_FILES['file']['type'], array_keys($allowed_mimes))) {
-		http_response_code(400);
-		return 'The uploaded file is not an allowed type.';
+	if(!in_array($file_ary['type'], array_keys($allowed_mimes))) {
+		return [400, 'The uploaded file is not an allowed type.'];
 	}
 
-	$file = 'attachment/' . $event_id . '/' . uniqid('', true) . '-' . $_FILES['file']['name'];
-	$thumbnail_file = 'attachment/' . $event_id . '/' . uniqid('', true) . '-thumb-' . $_FILES['file']['name'];
+	$file = 'attachment/' . $event_id . '/' . uniqid('', true) . '-' . $file_ary['name'];
+	$thumbnail_file = 'attachment/' . $event_id . '/' . uniqid('', true) . '-thumb-' . $file_ary['name'];
 
-	$checksum = md5_file($_FILES['file']['tmp_name']);
+	$checksum = md5_file($file_ary['tmp_name']);
 	if($app->db()->val('SELECT id FROM attachments WHERE checksum = :checksum', compact('checksum'))) {
-		http_response_code(400);
-		return 'This file has already been uploaded.';
+		return [400, 'This file has already been uploaded.'];
 	}
 
-	$thumbnail_image = image_resize(400, $_FILES['file']['tmp_name'], $allowed_mimes[$_FILES['file']['type']]);
+	$thumbnail_image = image_resize(400, $file_ary['tmp_name'], $allowed_mimes[$file_ary['type']]);
 
 	// copying to S3
 	$s3 = new \S3(Config::get('aws_key'), Config::get('aws_secret'));
 	if(
-		$s3->putObject(
-			\S3::inputFile($_FILES['file']['tmp_name'], false),
-			Config::get('s3_bucket'),
-			$file,
-			\S3::ACL_AUTHENTICATED_READ,
-			[
-				'Content-Type' => $_FILES['file']['type']
-			]
-		)
+	$s3->putObject(
+		\S3::inputFile($file_ary['tmp_name'], false),
+		Config::get('s3_bucket'),
+		$file,
+		\S3::ACL_AUTHENTICATED_READ,
+		[
+			'Content-Type' => $file_ary['type']
+		]
+	)
 	) {
 
 		if(
-			$s3->putObject(
-				$thumbnail_image,
-				Config::get('s3_bucket'),
-				$thumbnail_file,
-				\S3::ACL_AUTHENTICATED_READ,
-				[
-					'Content-Type' => 'image/jpeg'
-				]
-			)
+		$s3->putObject(
+			$thumbnail_image,
+			Config::get('s3_bucket'),
+			$thumbnail_file,
+			\S3::ACL_AUTHENTICATED_READ,
+			[
+				'Content-Type' => 'image/jpeg'
+			]
+		)
 		)
 		{
 			$app->db()->query(
 				'INSERT INTO attachments (user_id, event_id, filename, remote_url, thumbnail_url, checksum, added_on) VALUES (:user_id, :event_id, :filename, :remote_url, :thumbnail_url, :checksum, :added_on)',
 				[
-					'user_id' => $response['user']['id'],
+					'user_id' => $user['id'],
 					'event_id' => $event_id,
-					'filename' => basename($_FILES['file']['tmp_name']),
+					'filename' => basename($file_ary['tmp_name']),
 					'remote_url' => Config::get('s3_bucket') . '/' . $file,
 					'thumbnail_url' => Config::get('s3_bucket') . '/' . $thumbnail_file,
 					'checksum' => $checksum,
@@ -863,23 +962,32 @@ $app->route('attach_photo', '/admin/attach/:event_id', function(Request $request
 				]
 			);
 
-			$result = 'success';
+			$result = [200, 'success'];
 
 		}
 		else {
 			http_response_code(400);
-			$result = 'There was an error transferring the thumbnail file to external storage.';
+			$result = [400, 'There was an error transferring the thumbnail file to external storage.'];
 		}
 
 	}
 	else {
-		http_response_code(400);
-		$result = 'There was an error transferring the file to external storage.';
+		$result = [400, 'There was an error transferring the file to external storage.'];
 	}
 
-	unlink($_FILES['file']['tmp_name']);
+	unlink($file_ary['tmp_name']);
 
 	return $result;
+}
+
+$app->route('attach_photo', '/admin/attach/:event_id', function(Request $request, Response $response, Pack32 $app) {
+	$app->require_login();
+
+	$event_id = $request['event_id'];
+
+	list($code, $error) = process_event_file($event_id, $_FILES['file'], $response['user']['id'], $app);
+	http_response_code($code);
+	return $error;
 });
 
 function get_s3_file(Request $request, Pack32 $app, $field) {
@@ -1037,12 +1145,35 @@ function guid() {
 }
 
 $app->route('email_poll', '/email/poll', function(Response $response, Request $request, Pack32 $app) {
+	header('content-type:text/plain');
+	ini_set('html_errors', false);
+
+	// Check that the mailboxes we need exist
+	$mbox = imap_open(Config::get('imap_server'), Config::get('imap_username'), Config::get('imap_password'));
+	$list = imap_list($mbox, Config::get('imap_server'), "*");
+	$list = array_map(function($item){
+		return str_replace(Config::get('imap_server'), '', $item);
+	}, $list);
+	if(!in_array('INBOX/processed', $list)) {
+		echo "Creating processed inbox\n";
+		imap_createmailbox($mbox, "{imap.example.org}INBOX/processed");
+	}
+	if(!in_array('INBOX/baduser', $list)) {
+		echo "Creating baduser inbox\n";
+		imap_createmailbox($mbox, "{imap.example.org}INBOX/baduser");
+	}
+	if(!in_array('INBOX/invalid', $list)) {
+		echo "Creating invalid target inbox\n";
+		imap_createmailbox($mbox, "{imap.example.org}INBOX/invalid");
+	}
+
+	var_dump($list);
+
+	imap_close($mbox);
+
 	$mbox = imap_open(Config::get('imap_server'), Config::get('imap_username'), Config::get('imap_password'));
 
 	$MC = imap_check($mbox);
-
-	header('content-type:text/plain');
-	ini_set('html_errors', false);
 
 	echo "Number of messages: {$MC->Nmsgs}\n";
 
@@ -1053,7 +1184,8 @@ $app->route('email_poll', '/email/poll', function(Response $response, Request $r
 		foreach ($overviews as $overview) {
 			if( isset($processed[$overview->message_id]) ) {
 				// A message with this ID has already been processed.  Delete it.
-				imap_delete($mbox, $overview->uid, FT_UID);
+				imap_mail_move($mbox, $overview->uid, 'INBOX/processed', CP_UID);
+
 				continue;
 			}
 			$processed[$overview->message_id] = true;
@@ -1064,6 +1196,9 @@ $app->route('email_poll', '/email/poll', function(Response $response, Request $r
 			$from = reset($header->from);
 
 			//var_dump($header, $structure, $from);
+			if(!isset($header->subject)) {
+				$header->subject = '';
+			}
 			echo "\nFROM: {$from->personal}\nSUBJECT: {$header->subject}\nMESSAGE ID: {$overview->message_id}\n";
 
 			// Who is this email from?
@@ -1079,6 +1214,9 @@ $app->route('email_poll', '/email/poll', function(Response $response, Request $r
 				$subject = '[' . Config::get('mail_prefix') . ']';
 				if( isset($subject_prefix) && $subject_prefix != Config::get('mail_prefix') ) {
 					$subject .= '[' . $subject_prefix . ']';
+				}
+				if(!isset($overview->subject)) {
+					$overview->subject = '';
 				}
 				$subject_brackets = explode(']', $overview->subject);
 				$strip_subject = end($subject_brackets);
@@ -1096,7 +1234,9 @@ $app->route('email_poll', '/email/poll', function(Response $response, Request $r
 				// Process content for markdown
 				$response->set_renderer(MarkdownRenderer::create('', $app));
 				$html_content = strip_tags($content);
-				$html_content = $response->render($html_content);
+				if(trim($html_content) != '') {
+					$html_content = $response->render($html_content);
+				}
 
 				// Does the to address indicate an existing thread?
 				$thread_id = false;
@@ -1105,6 +1245,67 @@ $app->route('email_poll', '/email/poll', function(Response $response, Request $r
 				foreach ($header->to as $to) {
 					$email_slug = strtolower(preg_replace('#[^a-z0-9\-\+]+#i', '', $to->mailbox));
 					$grouped_slug[] = $email_slug;
+
+					// Is this message to the photos@ address?
+					if($email_slug == 'photos') {
+						foreach($structure->parts as $part_number => $part) {
+							$data = imap_fetchbody($mbox, $overview->uid, $part_number + 1, FT_UID);
+							$part->received_size = strlen($data);
+							$part->part_number = $part_number;
+							switch($part->encoding) {
+								case 4:
+									$data = quoted_printable_decode($data);
+									break;
+								case 3:
+									$data = base64_decode($data);
+									break;
+							}
+							$params = [];
+							if(isset($part->parameters)) {
+								foreach ($part->parameters as $x) {
+									$params[strtolower($x->attribute)] = $x->value;
+								}
+							}
+							if(isset($part->dparameters)) {
+								foreach ($part->dparameters as $x) {
+									$params[strtolower($x->attribute)] = $x->value;
+								}
+							}
+							if(isset($params['filename']) || isset($params['name'])) {
+								$filename = ($params['filename'])? $params['filename'] : $params['name'];
+								// filename may be encoded, so see imap_mime_header_decode()
+								$file = ['name' => $filename];
+								$file['tmp_name'] = tempnam(sys_get_temp_dir(), 'emailimg_');
+								switch($part->type) {
+									case TYPETEXT:
+										$file['type'] = 'text/';
+										break;
+									case TYPEIMAGE:
+										$file['type'] = 'image/';
+										break;
+									case TYPEVIDEO:
+										$file['type'] = 'video/';
+										break;
+									default:
+										$file['type'] = 'application/';
+										break;
+								}
+								$file['type'] .= $part->subtype;
+								file_put_contents($file['tmp_name'], $data);
+								$exif_date = exif_read_data($file['tmp_name'], 'IFD0', 0);
+								$edate = strtotime($exif_date['DateTime']);
+								$event = $app->db()->row("SELECT * FROM content WHERE content_type = 'event' ORDER BY ABS(event_on - :photo_time) ASC LIMIT 1", ['photo_time' => $edate]);
+								var_dump($event['title'], $file);
+
+								process_event_file($event['id'], $file, $from_user, $app);
+							}
+
+						}
+						imap_mail_move($mbox, $overview->uid, 'INBOX/processed', CP_UID);
+
+						continue 2;
+					}
+
 
 					// Check thread names
 					if( $thread = $app->db()->row('SELECT * FROM thread WHERE thread_token LIKE :thread_token', ['thread_token' => $email_slug]) ) {
@@ -1115,7 +1316,6 @@ $app->route('email_poll', '/email/poll', function(Response $response, Request $r
 						if(isset($overview->references)) {
 							$parent_ids = $overview->references;
 						}
-
 					}
 				}
 
@@ -1127,7 +1327,7 @@ $app->route('email_poll', '/email/poll', function(Response $response, Request $r
 						$tcount++;
 					} while($app->db()->val('SELECT id FROM thread WHERE thread_token = :token', ['token' => $new_thread_token]));
 					$app->db()->query(
-						'INSERT INTO thread (thread_token, msg_id) VALUES (:thread_token, :msg_id)',
+						'INSERT INTO thread (thread_token, msg_id, title) VALUES (:thread_token, :msg_id, :title)',
 						['thread_token' => $new_thread_token, 'msg_id' => $overview->message_id, 'title' => $subject]
 					);
 					$thread_id = $app->db()->lastInsertId();
@@ -1163,10 +1363,15 @@ $app->route('email_poll', '/email/poll', function(Response $response, Request $r
 						'received_on' => time(),
 					]
 				);
+				imap_mail_move($mbox, $overview->uid, 'INBOX/processed', CP_UID);
+			}
+			else {
+				// This message was not from a known user
+				imap_mail_move($mbox, $overview->uid, 'INBOX/baduser', CP_UID);
 			}
 
-			// Delete the message, it was either processed into the queue or wasn't from a known user
-			imap_delete($mbox, $overview->uid, FT_UID);
+//			// Delete the message, it was either processed into the queue or wasn't from a known user
+//			imap_delete($mbox, $overview->uid, FT_UID);
 
 		}
 
@@ -1274,6 +1479,11 @@ function send_message($to, $to_name, $from, $from_name, $subject, $content, $htm
 
 $app->route('email_testsend', '/email/testsend', function(Response $response, Request $request, Pack32 $app) {
 	//echo send_message('epithet@gmail.com', 'Owen Winkler', 'bear@cubpack32.com', 'Cub Pack 32 Website', '[Cub Pack 32][Bear] A bear event', "This is the message that is being sent.");
+});
+
+$app->route('messages', '/messages', function(Response $response, Request $request, Pack32 $app) {
+	$response['title'] = 'Calendar - ' . Config::get('org_name');
+	return $response->render('messages.php');
 });
 
 //include 'includes/usermap.php';
