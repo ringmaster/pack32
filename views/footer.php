@@ -94,6 +94,10 @@
 			});
 		});
 
+		$('.email_part_reply').on('click', function(){
+			$(this).toggleClass('expanded');
+		});
+
 		<?php if($_app->can_edit()): ?>
 		$('.delete').on('click', function(ev){
 			var href = $(this).attr('href');

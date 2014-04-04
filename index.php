@@ -89,6 +89,7 @@ include 'includes/s3.php';
 include 'includes/image.php';
 include 'includes/class.phpmailer.php';
 include 'includes/class.smtp.php';
+include 'includes/emailparser.php';
 
 Config::load(__DIR__ . '/config.php');
 Config::middleware($app);
@@ -110,6 +111,10 @@ $app->middleware('menu', function(Response $response, Pack32 $app) {
 		[
 			'href' => '/photos',
 			'title' => 'Photos',
+		],
+		[
+			'href' => '/messages',
+			'title' => 'Messages',
 		]
 	];
 	$response['submenu'] = [];
@@ -651,11 +656,15 @@ $app->route('photos archive', '/photos/zip', function(Request $request, Response
 		for($i = 0; $i < $zip->numFiles; $i++) {
 			$files[$i] = $zip->getNameIndex($i);
 		}
+		if(isset($_GET['debug'])) {
+			var_dump($files);
+		}
 
 		$s3 = new \S3(Config::get('aws_key'), Config::get('aws_secret'));
 
 		$changed = false;
 		$bail = false;
+		$ok_count = 0;
 
 		foreach ($attachments as $attachment) {
 			list(,$url) = explode('/', $attachment['remote_url'], 2);
@@ -663,6 +672,9 @@ $app->route('photos archive', '/photos/zip', function(Request $request, Response
 			$photo_file = date('Ymd', $attachment['event_on']) . '_' . preg_replace('#[^a-z0-9\.]+#i', '_', $attachment['title']) . '_' . sprintf('%04d', $attachment['id']) . $ext;
 
 			if(!in_array($photo_file, $files) && !$zip->locateName($photo_file, \ZipArchive::FL_NOCASE|\ZipArchive::FL_NODIR)) {
+				if(isset($_GET['debug'])) {
+					echo "Not found in zip {$photo_file} <br>\n";
+				}
 				$filedata = $s3->getObject(
 					Config::get('s3_bucket'),
 					$url,
@@ -697,33 +709,46 @@ $app->route('photos archive', '/photos/zip', function(Request $request, Response
 				}
 
 				$zip->addFromString($photo_file, $imgdata);
+				$ok_count++;
 				$changed = true;
 			}
-			if(microtime(true) - $start > 20) {
+			if(microtime(true) - $start > 15) {
 				// Bail out for time!
 				$bail = true;
+				if(isset($_GET['debug'])) {
+					echo "Bailed out for time. <br>\n";
+				}
 				break;
 			}
 		}
 
 		if($changed) {
+			if(isset($_GET['debug'])) {
+				echo "Changed archive, writing... <br>\n";
+			}
 			$zip->setArchiveComment('This archive was generated on ' . date('M j, Y') . ' at ' . date('h:i:s a') . ' from the photos at ' . Config::get('org_name') . ' by ' . $response['user']['username']);
 			$zip->close();
+			if(isset($_GET['debug'])) {
+				echo "Changed archive, written. <br>\n";
+			}
 		}
 
-		if($bail) {
-			header('location: ' . $_SERVER['REQUEST_URI']);
-			exit();
-		}
+		if(!isset($_GET['debug'])) {
+			if ($bail) {
+				header('location: ' . $_SERVER['REQUEST_URI']);
+				header('x-ok-count: ' . $ok_count);
+				exit();
+			}
 
-		while(ob_get_level()) {
-			ob_end_clean();
+			while (ob_get_level()) {
+				ob_end_clean();
+			}
+			header("X-Sendfile: $zip_file");
+			header('content-type: application/zip');
+			header('content-disposition: attachment;filename=' . strtolower(preg_replace('#[^a-z0-9\.]+#i', '_', Config::get('org_name')) . '_photos.zip'));
+			//echo $zip_file;
+			//readfile($zip_file);
 		}
-		//header("X-Sendfile: $zip_file");
-		header('content-type: application/zip');
-		header('content-disposition: attachment;filename=' . strtolower(preg_replace('#[^a-z0-9\.]+#i', '_', Config::get('org_name')) . '_photos.zip'));
-		//echo $zip_file;
-		readfile($zip_file);
 		exit();
 	}
 	else {
@@ -1232,11 +1257,12 @@ $app->route('email_poll', '/email/poll', function(Response $response, Request $r
 				echo "----------\n$content\n----------\n";
 
 				// Process content for markdown
-				$response->set_renderer(MarkdownRenderer::create('', $app));
+/*				$response->set_renderer(MarkdownRenderer::create('', $app));
 				$html_content = strip_tags($content);
 				if(trim($html_content) != '') {
 					$html_content = $response->render($html_content);
-				}
+				}*/
+				$html_content = nl2br(htmlspecialchars($content));
 
 				// Does the to address indicate an existing thread?
 				$thread_id = false;
@@ -1308,7 +1334,17 @@ $app->route('email_poll', '/email/poll', function(Response $response, Request $r
 
 
 					// Check thread names
-					if( $thread = $app->db()->row('SELECT * FROM thread WHERE thread_token LIKE :thread_token', ['thread_token' => $email_slug]) ) {
+/*					if( $thread = $app->db()->row('SELECT * FROM thread WHERE thread_token LIKE :thread_token', ['thread_token' => $email_slug]) ) {
+						$thread_id = $thread->id;
+						$subject = 'Re: ' . $subject;
+
+						// Find the parent message
+						if(isset($overview->references)) {
+							$parent_ids = $overview->references;
+						}
+					}*/
+
+					if( !$thread_id && isset($overview->in_reply_to) && $thread = $app->db()->row('SELECT thread.* FROM thread INNER JOIN messages ON messages.thread_id = thread.id WHERE messages.message_id LIKE :in_reply_to', ['in_reply_to' => $overview->in_reply_to]) ) {
 						$thread_id = $thread->id;
 						$subject = 'Re: ' . $subject;
 
@@ -1323,12 +1359,12 @@ $app->route('email_poll', '/email/poll', function(Response $response, Request $r
 				if( !$thread_id ) {
 					$tcount = 0;
 					do {
-						$new_thread_token = implode('_', $grouped_slug) . '+' . date('Ymd') . sprintf('%02d', $tcount);
+						$new_thread_token = implode('_', $grouped_slug); // . '+' . date('Ymd') . sprintf('%02d', $tcount);
 						$tcount++;
-					} while($app->db()->val('SELECT id FROM thread WHERE thread_token = :token', ['token' => $new_thread_token]));
+					} while(false /*$app->db()->val('SELECT id FROM thread WHERE thread_token = :token', ['token' => $new_thread_token])*/);
 					$app->db()->query(
 						'INSERT INTO thread (thread_token, msg_id, title) VALUES (:thread_token, :msg_id, :title)',
-						['thread_token' => $new_thread_token, 'msg_id' => $overview->message_id, 'title' => $subject]
+						['thread_token' => $new_thread_token, 'msg_id' => $overview->message_id, 'title' => $strip_subject]
 					);
 					$thread_id = $app->db()->lastInsertId();
 
@@ -1350,10 +1386,11 @@ $app->route('email_poll', '/email/poll', function(Response $response, Request $r
 				$new_message_id = $overview->message_id;
 				//'<' . guid() . '@' . Config::get('mailbox_domain') . '>';
 				$app->db()->query(
-					'INSERT INTO messages (title, content, html_content, from_id, thread_id, message_id, parent_ids, received_on)
-					VALUES (:title, :content, :html_content, :from_id, :thread_id, :message_id, :parent_ids, :received_on)',
+					'INSERT INTO messages (title, outbound_title, content, html_content, from_id, thread_id, message_id, parent_ids, received_on)
+					VALUES (:title, :outbound_title, :content, :html_content, :from_id, :thread_id, :message_id, :parent_ids, :received_on)',
 					[
-						'title' => $subject,
+						'title' => $strip_subject,
+						'outbound_title' => $subject,
 						'content' => $content,
 						'html_content' => $html_content,
 						'from_id' => $from_user->id,
@@ -1406,11 +1443,11 @@ SQL_UNQUEUED;
 
 	// Send queued messages
 	$sql = <<< SQL_MESSAGES
-SELECT
+SELECT DISTINCT
   u.username, u.email,
-  m.title, m.content, m.html_content, m.message_id, m.parent_ids,
+  m.outbound_title, m.content, m.html_content, m.message_id, m.parent_ids,
   u1.username AS from_username, u1.email AS from_email,
-  t.thread_token
+  t.thread_token, t.id as thread_id
   FROM sent s
   INNER JOIN users u ON u.id = s.user_to_id
   INNER JOIN messages m ON m.id = s.message_id
@@ -1422,14 +1459,20 @@ SQL_MESSAGES;
 
 	$messages = $app->db()->results($sql);
 	foreach($messages as $message) {
+		$response['message'] = $message;
+		$response['site_name'] = Config::get('org_name');
+		$response['site_url'] = 'http://' . $_SERVER['HTTP_HOST'] . '/';
+		$response['thread_url'] = 'http://' . $_SERVER['HTTP_HOST'] . $app->get_url('message_thread', ['thread_id' => $message->thread_id]);
+		$html_content = $response->render('email_html.php');
+		$content = $response->render('email_text.php');
 		send_message(
 			$message->email,
 			$message->username,
 			$message->thread_token . '@' . Config::get('mailbox_domain'),
 			$message->from_username,
-			$message->title,
-			$message->content,
-			$message->html_content,
+			$message->outbound_title,
+			$content,
+			$html_content,
 			$message->message_id,
 			$message->parent_ids
 		);
@@ -1455,8 +1498,13 @@ function send_message($to, $to_name, $from, $from_name, $subject, $content, $htm
 
 	$mail->From = $from;
 	$mail->FromName = $from_name;
-	$mail->addAddress($to, $to_name);
+	$mail->addAddress($from, Config::get('mail_prefix'));
+	$mail->addBCC($to, $to_name);
 	$mail->addReplyTo($from, Config::get('mail_prefix'));
+	$mail->addCustomHeader('List-Id', Config::get('mail_prefix') . ' <' . $from . '>');
+	$mail->addCustomHeader('List-Post', '<mailto:' . $from . '>');
+	$mail->addCustomHeader('Precedence', 'list');
+	$mail->addCustomHeader('Errors-To', str_replace('@', '+error@', $from_name));
 
 	$mail->WordWrap = 50;
 	$mail->isHTML(true);
@@ -1474,6 +1522,9 @@ function send_message($to, $to_name, $from, $from_name, $subject, $content, $htm
 	if(!$mail->send()) {
 		return $mail->ErrorInfo;
 	}
+	$handle = fopen(__DIR__ . '/pack32.log', 'a');
+	fwrite($handle, "Emailed[" . date('YmdHis') . "]::  To:{$to} Subject:{$subject}\n");
+	fclose($handle);
 	return true;
 }
 
@@ -1482,10 +1533,102 @@ $app->route('email_testsend', '/email/testsend', function(Response $response, Re
 });
 
 $app->route('messages', '/messages', function(Response $response, Request $request, Pack32 $app) {
-	$response['title'] = 'Calendar - ' . Config::get('org_name');
+
+	$response['title'] = 'Messages - ' . Config::get('org_name');
+	if(!$app->loggedin()) {
+		return $response->render('email_loggedout.php');
+	}
+	$app->require_login();
+
+	$response['usergroups'] = $app->db()->results('SELECT DISTINCT groups.id as group_id, groups.name as group_name FROM groups INNER JOIN usergroup ON groups.id = usergroup.group_id OR groups.is_global = 1 OR :admin_level > 0 WHERE account_id = :account_id GROUP BY groups.id', ['account_id' => $response['user']['account_id'], 'admin_level' => $response['user']['admin_level']]);
+	$sql = <<< LATEST_SQL
+SELECT DISTINCT
+  messages.id AS message_id,
+  messages.title,
+  thread.id AS thread_id,
+  thread.title AS thread_title,
+  users.username,
+  threadgroup.group_id,
+  groups.name AS group_name,
+  MAX(messages.received_on) AS received_on
+FROM messages
+  INNER JOIN thread
+    ON messages.thread_id = thread.id
+  INNER JOIN threadgroup
+    ON threadgroup.thread_id = thread.id
+  INNER JOIN groups
+    ON groups.id = threadgroup.group_id
+  INNER JOIN usergroup
+    ON threadgroup.group_id = usergroup.group_id
+  INNER JOIN users
+    ON messages.from_id = users.id
+  WHERE usergroup.account_id = :account_id
+GROUP BY
+  threadgroup.thread_id
+ORDER BY received_on DESC
+LIMIT 10;
+LATEST_SQL;
+
+	$response['latest'] = $app->db()->results($sql, ['account_id' => $response['user']['account_id']]);
+	$response['forgroup'] = '';
 	return $response->render('messages.php');
 });
 
+$app->route('messages_group', '/messages/:group_id', function(Response $response, Request $request, Pack32 $app) {
+	$response['title'] = 'Messages - ' . Config::get('org_name');
+	if(!$app->loggedin()) {
+		return $response->render('email_loggedout.php');
+	}
+	$app->require_login();
+
+	$response['group'] = $app->db()->row('SELECT * FROM groups WHERE id = :group_id', ['group_id' => $request['group_id']]);
+	$response['forgroup'] = ' - ' . $response['group']['name'];
+	$response['usergroups'] = $app->db()->results('SELECT DISTINCT groups.id as group_id, groups.name as group_name FROM groups INNER JOIN usergroup ON groups.id = usergroup.group_id OR groups.is_global = 1 OR :admin_level > 0 WHERE account_id = :account_id GROUP BY groups.id', ['account_id' => $response['user']['account_id'], 'admin_level' => $response['user']['admin_level']]);
+	$sql = <<< LATEST_SQL
+SELECT DISTINCT
+  messages.id AS message_id,
+  messages.title,
+  thread.id AS thread_id,
+  thread.title AS thread_title,
+  users.username,
+  threadgroup.group_id,
+  groups.name AS group_name,
+  MAX(messages.received_on) AS received_on
+FROM messages
+  INNER JOIN thread
+    ON messages.thread_id = thread.id
+  INNER JOIN threadgroup
+    ON threadgroup.thread_id = thread.id
+  INNER JOIN groups
+    ON groups.id = threadgroup.group_id
+  INNER JOIN usergroup
+    ON threadgroup.group_id = usergroup.group_id
+  INNER JOIN users
+    ON messages.from_id = users.id
+  WHERE usergroup.account_id = :account_id
+  AND groups.id = :group_id
+GROUP BY
+  threadgroup.thread_id
+ORDER BY received_on DESC;
+LATEST_SQL;
+
+	$response['latest'] = $app->db()->results($sql, ['account_id' => $response['user']['account_id'], 'group_id' => $request['group_id']]);
+	return $response->render('messages.php');
+});
+
+$app->route('message_thread', '/message/:thread_id', function(Response $response, Request $request, Pack32 $app) {
+	$response['title'] = 'Message - ' . Config::get('org_name');
+	if(!$app->loggedin()) {
+		return $response->render('email_loggedout.php');
+	}
+	$app->require_login();
+
+	$response['usergroups'] = $app->db()->results('SELECT DISTINCT groups.id as group_id, groups.name as group_name FROM groups INNER JOIN usergroup ON groups.id = usergroup.group_id OR groups.is_global = 1 OR :admin_level > 0 WHERE account_id = :account_id GROUP BY groups.id', ['account_id' => $response['user']['account_id'], 'admin_level' => $response['user']['admin_level']]);
+	$response['thread'] = $app->db()->row('SELECT * FROM thread WHERE id = :thread_id', ['thread_id' => $request['thread_id']]);
+	$response['title'] = $response['thread']['title'] . ' - Message - ' . Config::get('org_name');
+	$response['messages'] = $app->db()->results('SELECT * FROM messages INNER JOIN users ON users.id = messages.from_id WHERE messages.thread_id = :thread_id ORDER BY received_on ASC;', ['thread_id' => $request['thread_id']]);
+	return $response->render('thread.php');
+});
 //include 'includes/usermap.php';
 
 $app();
